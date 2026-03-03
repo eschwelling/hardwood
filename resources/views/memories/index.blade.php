@@ -1,13 +1,21 @@
 @extends('layouts.app')
 
 @section('content')
+
+<div class="page-header">
+    <h1>Basketball Memories</h1>
+    <div class="divider"></div>
+    <p>Anonymous stories from fans who lived them. No accounts, no likes, no noise.</p>
+</div>
+
 <div class="page-layout">
 
     {{-- Feed --}}
     <div>
         @if($memories->isEmpty())
             <div class="empty">
-                <p>No memories yet. <a href="/post">Be the first to share one.</a></p>
+                <p>No memories yet. Be the first to share one.</p>
+                <a href="/post" class="btn btn-primary">Share a memory</a>
             </div>
         @else
             @foreach($memories as $memory)
@@ -30,7 +38,6 @@
                 </div>
             @endforeach
 
-            {{-- Pagination --}}
             @if($memories->hasPages())
                 <div class="pagination">
                     {{ $memories->links() }}
@@ -39,7 +46,7 @@
         @endif
     </div>
 
-    {{-- Filters --}}
+    {{-- Glassmorphism Filter Sidebar --}}
     <aside class="filters">
         @if(isset($tags['team']))
             <h3>Teams</h3>
@@ -72,7 +79,7 @@
         @endif
 
         @if(request('tag'))
-            <a href="/" class="filter-link" style="margin-top:1.5rem; color: var(--amber);">✕ clear filter</a>
+            <a href="/" class="filter-clear">✕ clear filter</a>
         @endif
     </aside>
 
