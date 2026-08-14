@@ -12,6 +12,14 @@ class MemoryController extends Controller
 {
     public function index(Request $request)
     {
+        error_log('DBCHECK host=' . config('database.connections.pgsql.host')
+            . ' port=' . config('database.connections.pgsql.port')
+            . ' db=' . config('database.connections.pgsql.database')
+            . ' user=' . config('database.connections.pgsql.username')
+            . ' url_set=' . (config('database.connections.pgsql.url') ? 'yes' : 'no')
+            . ' env_DB_HOST=' . env('DB_HOST')
+            . ' env_DB_URL_set=' . (env('DB_URL') ? 'yes' : 'no'));
+
         $query = Memory::approved()
             ->with('tags')
             ->latest();
