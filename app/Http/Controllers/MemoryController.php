@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Data\NbaOnThisDay;
 use App\Models\Memory;
 use App\Models\Tag;
 use Illuminate\Http\Request;
@@ -22,8 +23,9 @@ class MemoryController extends Controller
 
         $memories = $query->paginate(20);
         $tags = Tag::orderBy('type')->orderBy('name')->get()->groupBy('type');
+        $onThisDay = NbaOnThisDay::forDate(now());
 
-        return view('memories.index', compact('memories', 'tags'));
+        return view('memories.index', compact('memories', 'tags', 'onThisDay'));
     }
 
     public function create()
@@ -58,8 +60,18 @@ class MemoryController extends Controller
 
         $memory->tags()->attach($validated['tag_ids']);
 
+        // Echo: surface one other memory that shares a tag, so the poster
+        // sees they're not the only one who remembers this.
+        $echo = Memory::approved()
+            ->where('id', '!=', $memory->id)
+            ->whereHas('tags', fn($q) => $q->whereIn('tags.id', $validated['tag_ids']))
+            ->with('tags')
+            ->inRandomOrder()
+            ->first();
+
         return redirect()->route('memories.index')
-            ->with('success', 'Your memory has been shared. 🏀');
+            ->with('success', 'Your memory has been shared. 🏀')
+            ->with('echo', $echo);
     }
 
     public function report(Request $request, Memory $memory)
@@ -82,5 +94,16 @@ class MemoryController extends Controller
         }
 
         return back()->with('success', 'Thanks for the report.');
+    }
+
+    public function resonate(Request $request, Memory $memory)
+    {
+        // Deterministic per-IP hash (unlike Hash::make) so the unique
+        // constraint can actually catch a repeat tap from the same visitor.
+        $ipHash = hash_hmac('sha256', $request->ip(), config('app.key'));
+
+        $memory->resonates()->firstOrCreate(['ip_hash' => $ipHash]);
+
+        return response()->json(['ok' => true]);
     }
 }

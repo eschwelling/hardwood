@@ -31,6 +31,11 @@ class Memory extends Model
         return $this->hasMany(Report::class);
     }
 
+    public function resonates(): HasMany
+    {
+        return $this->hasMany(Resonate::class);
+    }
+
     public function scopeApproved($query)
     {
         return $query->where('status', 'approved');

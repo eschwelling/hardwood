@@ -9,6 +9,7 @@ Route::get('/', [MemoryController::class, 'index'])->name('memories.index');
 Route::get('/post', [MemoryController::class, 'create'])->name('memories.create');
 Route::post('/post', [MemoryController::class, 'store'])->name('memories.store');
 Route::post('/report/{memory}', [MemoryController::class, 'report'])->name('memories.report');
+Route::post('/resonate/{memory}', [MemoryController::class, 'resonate'])->name('memories.resonate');
 
 // Admin routes (basic auth protected)
 Route::middleware('auth.basic')->prefix('admin')->group(function () {
