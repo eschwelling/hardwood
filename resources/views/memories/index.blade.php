@@ -7,7 +7,7 @@
     <div class="hero-inner">
         <div class="hero-eyebrow">Est. 2026 &nbsp;·&nbsp; Anonymous &nbsp;·&nbsp; No accounts</div>
         <h1 class="hero-title">
-            <span class="hero-word">Hard</span><span class="hero-word hero-word--amber">wood</span>
+            <span class="hero-word">Raft</span><span class="hero-word hero-word--amber">ers</span>
         </h1>
         <p class="hero-sub">Basketball memories from fans who lived them.<br>No names. No likes. Just the game.</p>
         <div class="hero-actions">
@@ -791,7 +791,7 @@
     // switches your reaction; the choice is remembered locally per memory.
     document.addEventListener('DOMContentLoaded', () => {
         const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
-        const storeKey = 'hardwood-reactions';
+        const storeKey = 'rafters-reactions';
         const mine = JSON.parse(localStorage.getItem(storeKey) || '{}');
 
         document.querySelectorAll('.reaction-group').forEach((group) => {
@@ -1001,7 +1001,7 @@
         ctx.textAlign = 'center';
         ctx.fillStyle = '#c8872a';
         ctx.font = '700 22px Inter, sans-serif';
-        ctx.fillText('H A R D W O O D', W / 2, 140);
+        ctx.fillText('R A F T E R S', W / 2, 140);
 
         ctx.fillStyle = '#f0e8d8';
         ctx.font = 'italic 900 54px "Playfair Display", serif';
@@ -1041,7 +1041,7 @@
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = 'hardwood-memory.png';
+                a.download = 'rafters-memory.png';
                 a.click();
                 URL.revokeObjectURL(url);
                 resolve();

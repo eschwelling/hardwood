@@ -1,4 +1,4 @@
-# Deploying Hardwood
+# Deploying Rafters
 
 The app runs as a Docker container and needs a Postgres database. The container
 runs migrations and the tag seeder on every boot, then serves on `$PORT`.
