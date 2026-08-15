@@ -12,11 +12,12 @@ Route::post('/report/{memory}', [MemoryController::class, 'report'])->name('memo
 Route::post('/resonate/{memory}', [MemoryController::class, 'resonate'])->name('memories.resonate');
 Route::post('/annotate/{memory}', [MemoryController::class, 'annotate'])->name('memories.annotate');
 
+Route::get('/admin/login', [AdminController::class, 'showLogin'])->name('login');
+Route::post('/admin/login', [AdminController::class, 'login'])->name('admin.login')->middleware('throttle:5,1');
 Route::post('/admin/exit', [AdminController::class, 'exit'])->name('admin.exit');
 
-// Admin routes (basic auth protected)
-Route::middleware('auth.basic')->prefix('admin')->group(function () {
-    Route::get('/enter', [AdminController::class, 'enter'])->name('admin.enter');
+// Admin routes (session auth, via the login form above)
+Route::middleware('auth')->prefix('admin')->group(function () {
     Route::get('/', [AdminController::class, 'index'])->name('admin.index');
     Route::post('/approve/{memory}', [AdminController::class, 'approve'])->name('admin.approve');
     Route::post('/reject/{memory}', [AdminController::class, 'reject'])->name('admin.reject');

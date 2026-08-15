@@ -459,7 +459,7 @@
                 <button type="submit" class="nav-link admin-toggle admin-toggle-on">Admin mode: on</button>
             </form>
         @else
-            <a href="{{ route('admin.enter') }}" class="nav-link admin-toggle">Admin</a>
+            <a href="{{ route('login') }}" class="nav-link admin-toggle">Admin</a>
         @endauth
     </div>
 </nav>

@@ -9,15 +9,37 @@ use Illuminate\Support\Facades\Auth;
 
 class AdminController extends Controller
 {
-    public function enter()
+    public function showLogin()
     {
-        // auth.basic already logged the session in by the time we get here.
+        if (auth()->check()) {
+            return redirect('/');
+        }
+
+        return view('admin.login');
+    }
+
+    public function login(Request $request)
+    {
+        $credentials = $request->validate([
+            'email'    => 'required|email',
+            'password' => 'required|string',
+        ]);
+
+        if (!Auth::attempt($credentials)) {
+            return back()->withErrors(['email' => 'Those credentials don\'t match.'])->onlyInput('email');
+        }
+
+        $request->session()->regenerate();
+
         return redirect('/')->with('success', 'Admin mode on.');
     }
 
-    public function exit()
+    public function exit(Request $request)
     {
         Auth::logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
         return redirect('/')->with('success', 'Admin mode off.');
     }
 
