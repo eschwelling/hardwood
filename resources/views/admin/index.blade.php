@@ -41,4 +41,39 @@
 
     {{ $pending->links() }}
 @endif
+
+<h1 style="font-family:'Playfair Display',serif; font-weight:400; font-size:1.6rem; color:var(--amber); margin:3rem 0 2rem;">
+    Pending Annotations
+</h1>
+
+@if($pendingAnnotations->isEmpty())
+    <div class="empty">
+        <p>No annotations waiting on review.</p>
+    </div>
+@else
+    @foreach($pendingAnnotations as $annotation)
+        <div class="memory-card" style="padding: 1.5rem; background: var(--surface); border: 1px solid var(--border); margin-bottom: 1rem;">
+            <p class="memory-body" style="color:var(--text-muted); font-size:0.85rem; margin-bottom:0.75rem;">
+                {{ \Illuminate\Support\Str::limit($annotation->memory->body, 160) }}
+            </p>
+
+            <p style="border-left:2px solid var(--amber); padding-left:0.75rem; margin-bottom:1rem;">
+                {{ $annotation->body }}
+            </p>
+
+            <div style="display:flex; gap:1rem;">
+                <form action="{{ route('admin.annotations.approve', $annotation) }}" method="POST">
+                    @csrf
+                    <button type="submit" class="btn btn-primary" style="padding:0.5rem 1.25rem; font-size:0.78rem;">Approve</button>
+                </form>
+                <form action="{{ route('admin.annotations.reject', $annotation) }}" method="POST">
+                    @csrf
+                    <button type="submit" class="btn btn-ghost" style="padding:0.5rem 1.25rem; font-size:0.78rem; border-color:#c84040; color:#e87070;">Reject</button>
+                </form>
+            </div>
+        </div>
+    @endforeach
+
+    {{ $pendingAnnotations->links() }}
+@endif
 @endsection

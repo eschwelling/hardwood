@@ -93,9 +93,11 @@
             </div>
         @else
             <div class="memories-feed">
+                @php $reactionEmoji = ['fire' => '🔥', 'goat' => '🐐', 'cry' => '😭', 'hype' => '🙌']; @endphp
                 @foreach($memories as $memory)
+                    @php $reactionCounts = $memory->resonates->countBy('type'); @endphp
                     <article class="memory-card">
-                        <p class="memory-body">{{ $memory->body }}</p>
+                        <p class="memory-body" data-memory-id="{{ $memory->id }}">{!! \App\Support\AnnotationRenderer::render($memory) !!}</p>
                         <div class="memory-tags">
                             @foreach($memory->tags as $tag)
                                 <a href="/?tag={{ $tag->slug }}"
@@ -105,11 +107,14 @@
                             @endforeach
                         </div>
                         <div class="memory-actions">
-                            <button type="button" class="resonate-btn" data-memory-id="{{ $memory->id }}" title="This resonates">
-                                <svg class="flame-icon" viewBox="0 0 24 24" width="13" height="13">
-                                    <path d="M12 2c1.2 3.8-2.6 5.3-2.6 8.8a2.6 2.6 0 005.2 0c0-1.6-.8-2.6-.8-2.6s1.8.9 1.8 3.4a4.4 4.4 0 01-8.8 0c0-4.6 3.6-5.7 3.6-9.2 0 0 .9-.2 1.6-.4z" fill="currentColor"/>
-                                </svg>
-                            </button>
+                            <div class="reaction-group" data-memory-id="{{ $memory->id }}">
+                                @foreach($reactionEmoji as $type => $emoji)
+                                    <button type="button" class="reaction-btn" data-type="{{ $type }}" title="{{ ucfirst($type) }}">
+                                        <span class="reaction-emoji">{{ $emoji }}</span>
+                                        <span class="reaction-count">{{ ($reactionCounts[$type] ?? 0) > 0 ? $reactionCounts[$type] : '' }}</span>
+                                    </button>
+                                @endforeach
+                            </div>
                             <button type="button" class="card-btn">card</button>
                             <form action="/report/{{ $memory->id }}" method="POST" class="report-form">
                                 @csrf
@@ -380,6 +385,167 @@
         filter: drop-shadow(0 0 6px var(--amber-glow));
     }
 
+    /* Reactions */
+    .reaction-group {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.85rem;
+    }
+
+    .reaction-btn {
+        background: none;
+        border: none;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        cursor: pointer;
+        font-family: 'Inter', sans-serif;
+        opacity: 0.55;
+        filter: grayscale(0.6);
+        transition: opacity 0.2s, filter 0.2s, transform 0.2s;
+    }
+
+    .reaction-btn:hover {
+        opacity: 0.9;
+        filter: grayscale(0.2);
+    }
+
+    .reaction-btn.active {
+        opacity: 1;
+        filter: grayscale(0);
+        transform: scale(1.08);
+    }
+
+    .reaction-emoji {
+        font-size: 0.95rem;
+        line-height: 1;
+    }
+
+    .reaction-count {
+        font-size: 0.65rem;
+        color: var(--text-muted);
+        min-width: 0.7em;
+        font-weight: 500;
+    }
+
+    /* Annotations */
+    .annotation {
+        background: var(--amber-dim);
+        border-bottom: 1px dashed var(--amber);
+        color: var(--amber-light);
+        cursor: help;
+        position: relative;
+    }
+
+    .annotation:hover,
+    .annotation:focus {
+        background: var(--amber-glow);
+        outline: none;
+    }
+
+    .annotation:hover::after,
+    .annotation:focus::after {
+        content: attr(data-note);
+        position: absolute;
+        left: 50%;
+        bottom: 100%;
+        transform: translateX(-50%);
+        margin-bottom: 8px;
+        background: var(--surface2);
+        border: 1px solid var(--border2);
+        color: var(--text);
+        padding: 0.55rem 0.8rem;
+        border-radius: 4px;
+        font-size: 0.72rem;
+        line-height: 1.45;
+        white-space: normal;
+        width: max-content;
+        max-width: 240px;
+        z-index: 60;
+        box-shadow: 0 10px 24px rgba(0,0,0,0.45);
+        text-transform: none;
+        letter-spacing: normal;
+    }
+
+    .annotation-popover {
+        position: absolute;
+        z-index: 900;
+        transform: translateX(-50%);
+        background: var(--surface2);
+        border: 1px solid var(--border2);
+        border-radius: 6px;
+        box-shadow: 0 12px 28px rgba(0,0,0,0.5);
+        padding: 0.4rem;
+    }
+
+    .annotation-trigger {
+        background: var(--amber);
+        color: var(--bg);
+        border: none;
+        border-radius: 4px;
+        padding: 0.4rem 0.75rem;
+        font-size: 0.7rem;
+        font-weight: 600;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        cursor: pointer;
+        font-family: 'Inter', sans-serif;
+        white-space: nowrap;
+    }
+
+    .annotation-form {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        width: 220px;
+    }
+
+    .annotation-form textarea {
+        background: var(--surface);
+        border: 1px solid var(--border2);
+        border-radius: 4px;
+        color: var(--text);
+        font-family: 'Inter', sans-serif;
+        font-size: 0.78rem;
+        padding: 0.5rem;
+        resize: none;
+    }
+
+    .annotation-form-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.5rem;
+    }
+
+    .annotation-form-actions button {
+        font-family: 'Inter', sans-serif;
+        font-size: 0.68rem;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        border: none;
+        border-radius: 4px;
+        padding: 0.4rem 0.7rem;
+        cursor: pointer;
+    }
+
+    .btn-annotation-submit {
+        background: var(--amber);
+        color: var(--bg);
+        font-weight: 600;
+    }
+
+    .btn-annotation-cancel {
+        background: none;
+        color: var(--text-muted);
+    }
+
+    .annotation-status {
+        font-size: 0.68rem;
+        color: var(--text-muted);
+        padding: 0.3rem 0.1rem;
+    }
+
     @keyframes resonatePulse {
         0% { transform: scale(1); }
         40% { transform: scale(1.5); }
@@ -513,27 +679,186 @@
 </script>
 
 <script>
-    // Resonate — one silent tap, persisted locally so the flame stays lit
+    // Reactions — pick one of a few specific reactions per memory (BeReal-
+    // style RealMoji, not a single generic like). Tapping a different one
+    // switches your reaction; the choice is remembered locally per memory.
     document.addEventListener('DOMContentLoaded', () => {
         const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
-        const storeKey = 'hardwood-resonated';
-        const lit = new Set(JSON.parse(localStorage.getItem(storeKey) || '[]'));
+        const storeKey = 'hardwood-reactions';
+        const mine = JSON.parse(localStorage.getItem(storeKey) || '{}');
 
-        document.querySelectorAll('.resonate-btn').forEach((btn) => {
-            const id = btn.dataset.memoryId;
-            if (lit.has(id)) btn.classList.add('lit');
+        document.querySelectorAll('.reaction-group').forEach((group) => {
+            const memoryId = group.dataset.memoryId;
+            const buttons = [...group.querySelectorAll('.reaction-btn')];
 
-            btn.addEventListener('click', () => {
-                if (lit.has(id)) return;
-                btn.classList.add('lit');
-                lit.add(id);
-                localStorage.setItem(storeKey, JSON.stringify([...lit]));
+            const markActive = (type) => {
+                buttons.forEach((b) => b.classList.toggle('active', b.dataset.type === type));
+            };
 
-                fetch(`/resonate/${id}`, {
-                    method: 'POST',
-                    headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' },
-                }).catch(() => {});
+            if (mine[memoryId]) markActive(mine[memoryId]);
+
+            buttons.forEach((btn) => {
+                btn.addEventListener('click', () => {
+                    const type = btn.dataset.type;
+                    if (mine[memoryId] === type) return;
+
+                    const previous = mine[memoryId];
+                    const countEl = btn.querySelector('.reaction-count');
+                    countEl.textContent = String((parseInt(countEl.textContent || '0', 10) || 0) + 1);
+
+                    if (previous) {
+                        const prevBtn = buttons.find((b) => b.dataset.type === previous);
+                        const prevCountEl = prevBtn?.querySelector('.reaction-count');
+                        if (prevCountEl) {
+                            const next = (parseInt(prevCountEl.textContent || '0', 10) || 0) - 1;
+                            prevCountEl.textContent = next > 0 ? String(next) : '';
+                        }
+                    }
+
+                    mine[memoryId] = type;
+                    localStorage.setItem(storeKey, JSON.stringify(mine));
+                    markActive(type);
+
+                    fetch(`/resonate/${memoryId}`, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRF-TOKEN': csrfToken,
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                        },
+                        body: JSON.stringify({ type }),
+                    }).catch(() => {});
+                });
             });
+        });
+    });
+</script>
+
+<script>
+    // Annotations — highlight a phrase inside a memory to attach context,
+    // Genius-style. Selecting text shows a small "+ annotate" popover.
+    document.addEventListener('DOMContentLoaded', () => {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+
+        const popover = document.createElement('div');
+        popover.className = 'annotation-popover';
+        popover.style.display = 'none';
+        popover.innerHTML = `
+            <button type="button" class="annotation-trigger">+ annotate</button>
+            <form class="annotation-form" style="display:none;">
+                <textarea maxlength="280" rows="2" placeholder="Add context, a source, a story..."></textarea>
+                <div class="annotation-form-actions">
+                    <button type="button" class="btn-annotation-cancel">Cancel</button>
+                    <button type="submit" class="btn-annotation-submit">Post</button>
+                </div>
+            </form>
+        `;
+        document.body.appendChild(popover);
+
+        const trigger = popover.querySelector('.annotation-trigger');
+        const form = popover.querySelector('.annotation-form');
+        const textarea = popover.querySelector('textarea');
+
+        let active = null; // { memoryId, start, end }
+
+        function hidePopover() {
+            popover.style.display = 'none';
+            trigger.style.display = '';
+            form.style.display = 'none';
+            textarea.value = '';
+            active = null;
+        }
+
+        function textOffsets(container, range) {
+            const preRange = document.createRange();
+            preRange.selectNodeContents(container);
+            preRange.setEnd(range.startContainer, range.startOffset);
+            const start = preRange.toString().length;
+            return { start, end: start + range.toString().length };
+        }
+
+        function handleSelection(el) {
+            const selection = window.getSelection();
+            if (!selection || selection.isCollapsed || selection.rangeCount === 0) return;
+
+            const text = selection.toString().trim();
+            if (text.length < 2) return;
+
+            const range = selection.getRangeAt(0);
+            if (!el.contains(range.commonAncestorContainer)) return;
+
+            const offsets = textOffsets(el, range);
+            active = { memoryId: el.dataset.memoryId, start: offsets.start, end: offsets.end };
+
+            const rect = range.getBoundingClientRect();
+            popover.style.left = `${rect.left + window.scrollX + rect.width / 2}px`;
+            popover.style.top = `${rect.top + window.scrollY - 42}px`;
+            popover.style.display = 'block';
+            trigger.style.display = '';
+            form.style.display = 'none';
+        }
+
+        document.querySelectorAll('.memory-body').forEach((el) => {
+            el.addEventListener('mouseup', () => handleSelection(el));
+            el.addEventListener('touchend', () => handleSelection(el));
+        });
+
+        trigger.addEventListener('click', () => {
+            trigger.style.display = 'none';
+            form.style.display = 'flex';
+            textarea.focus();
+        });
+
+        popover.querySelector('.btn-annotation-cancel').addEventListener('click', hidePopover);
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!active) return;
+
+            const body = textarea.value.trim();
+            if (!body) return;
+
+            const { memoryId, start, end } = active;
+
+            try {
+                const res = await fetch(`/annotate/${memoryId}`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': csrfToken,
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                    },
+                    body: JSON.stringify({ start_offset: start, end_offset: end, body }),
+                });
+
+                if (res.status === 429) {
+                    form.innerHTML = '<p class="annotation-status">Daily annotation limit reached.</p>';
+                    setTimeout(hidePopover, 2000);
+                    return;
+                }
+
+                const data = await res.json();
+
+                if (data.status === 'approved') {
+                    window.getSelection().removeAllRanges();
+                    hidePopover();
+                    location.reload();
+                    return;
+                }
+
+                form.innerHTML = '<p class="annotation-status">Thanks — held for a quick review. 🏀</p>';
+                setTimeout(hidePopover, 2000);
+            } catch (err) {
+                hidePopover();
+            }
+        });
+
+        document.addEventListener('mousedown', (e) => {
+            if (!popover.contains(e.target)) hidePopover();
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') hidePopover();
         });
     });
 </script>

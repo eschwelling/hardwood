@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Data\NbaOnThisDay;
+use App\Models\Annotation;
 use App\Models\Memory;
+use App\Models\Resonate;
 use App\Models\Tag;
 use App\Services\ModerationService;
 use Illuminate\Http\Request;
@@ -18,7 +20,11 @@ class MemoryController extends Controller
     public function index(Request $request)
     {
         $query = Memory::approved()
-            ->with('tags')
+            ->with([
+                'tags',
+                'resonates',
+                'annotations' => fn ($q) => $q->approved()->orderBy('start_offset'),
+            ])
             ->latest();
 
         // Filter by tag slug if provided
@@ -110,12 +116,66 @@ class MemoryController extends Controller
 
     public function resonate(Request $request, Memory $memory)
     {
+        $validated = $request->validate([
+            'type' => 'required|in:' . implode(',', Resonate::TYPES),
+        ]);
+
         // Deterministic per-IP hash (unlike Hash::make) so the unique
         // constraint can actually catch a repeat tap from the same visitor.
         $ipHash = hash_hmac('sha256', $request->ip(), config('app.key'));
 
-        $memory->resonates()->firstOrCreate(['ip_hash' => $ipHash]);
+        // updateOrCreate rather than firstOrCreate: tapping a different
+        // reaction switches your reaction instead of being a no-op.
+        $memory->resonates()->updateOrCreate(
+            ['ip_hash' => $ipHash],
+            ['type' => $validated['type']]
+        );
 
         return response()->json(['ok' => true]);
+    }
+
+    public function annotate(Request $request, Memory $memory)
+    {
+        $validated = $request->validate([
+            'start_offset' => 'required|integer|min:0',
+            'end_offset'   => 'required|integer|gt:start_offset',
+            'body'         => 'required|string|min:2|max:280',
+        ]);
+
+        if ($validated['end_offset'] > mb_strlen($memory->body)) {
+            abort(422, 'Annotation range is out of bounds.');
+        }
+
+        $ipHash = hash_hmac('sha256', $request->ip() . now()->toDateString(), config('app.key'));
+
+        // Rate limit: 10 annotations per IP per day
+        $todayCount = Annotation::where('ip_hash', $ipHash)
+            ->whereDate('created_at', today())
+            ->count();
+
+        if ($todayCount >= 10) {
+            return response()->json(['error' => 'You can only add 10 annotations per day.'], 429);
+        }
+
+        $status = $this->moderation->needsReview($validated['body']) ? 'pending' : 'approved';
+
+        $annotation = $memory->annotations()->create([
+            'start_offset' => $validated['start_offset'],
+            'end_offset'   => $validated['end_offset'],
+            'body'         => $validated['body'],
+            'ip_hash'      => $ipHash,
+            'status'       => $status,
+        ]);
+
+        return response()->json([
+            'ok'     => true,
+            'status' => $status,
+            'annotation' => $status === 'approved' ? [
+                'id'            => $annotation->id,
+                'start_offset'  => $annotation->start_offset,
+                'end_offset'    => $annotation->end_offset,
+                'body'          => $annotation->body,
+            ] : null,
+        ]);
     }
 }

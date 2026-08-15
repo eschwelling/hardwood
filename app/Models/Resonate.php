@@ -7,9 +7,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Resonate extends Model
 {
+    public const TYPES = ['fire', 'goat', 'cry', 'hype'];
+
     protected $fillable = [
         'memory_id',
         'ip_hash',
+        'type',
     ];
 
     protected $hidden = [
