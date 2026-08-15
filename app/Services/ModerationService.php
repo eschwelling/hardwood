@@ -8,20 +8,29 @@ use Illuminate\Support\Facades\Log;
 class ModerationService
 {
     /**
-     * Check text against OpenAI's moderation endpoint.
+     * Obvious slurs/spam markers checked when no OPENAI_API_KEY is
+     * configured. Intentionally coarse — a stopgap, not real moderation.
+     */
+    private const BLOCKLIST = [
+        'nigger', 'nigga', 'faggot', 'retard', 'kike', 'spic', 'chink',
+        'porn', 'xxx', 'onlyfans',
+        'viagra', 'crypto giveaway', 'bit.ly', 'click here to claim',
+    ];
+
+    /**
+     * Decide whether a post needs manual review before going live.
      *
-     * Returns true if the content should be held for manual review —
-     * either because it was flagged, or because moderation couldn't be
-     * performed (missing key, API error, timeout). Never silently lets
-     * unmoderated content go straight to the public feed.
+     * With OPENAI_API_KEY configured, uses OpenAI's moderation endpoint
+     * and fails safe (holds for review) if that call errors. Without a
+     * key, falls back to a local keyword blocklist so normal posts keep
+     * publishing instantly instead of every post queuing for review.
      */
     public function needsReview(string $text): bool
     {
         $key = config('services.openai.key');
 
         if (!$key) {
-            Log::warning('Moderation skipped: OPENAI_API_KEY not configured. Holding for manual review.');
-            return true;
+            return $this->matchesBlocklist($text);
         }
 
         try {
@@ -42,5 +51,18 @@ class ModerationService
             Log::warning('Moderation API request threw', ['message' => $e->getMessage()]);
             return true;
         }
+    }
+
+    private function matchesBlocklist(string $text): bool
+    {
+        $haystack = strtolower($text);
+
+        foreach (self::BLOCKLIST as $term) {
+            if (str_contains($haystack, $term)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
