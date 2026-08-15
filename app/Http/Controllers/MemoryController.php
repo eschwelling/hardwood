@@ -19,11 +19,15 @@ class MemoryController extends Controller
 
     public function index(Request $request)
     {
-        $query = Memory::approved()
+        $isAdmin = auth()->check();
+
+        // Admin mode sees every status (pending/rejected included) and every
+        // annotation, so moderation can happen inline without leaving the feed.
+        $query = ($isAdmin ? Memory::query() : Memory::approved())
             ->with([
                 'tags',
                 'resonates',
-                'annotations' => fn ($q) => $q->approved()->orderBy('start_offset'),
+                'annotations' => fn ($q) => $isAdmin ? $q->orderBy('start_offset') : $q->approved()->orderBy('start_offset'),
             ])
             ->latest();
 

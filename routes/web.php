@@ -12,11 +12,16 @@ Route::post('/report/{memory}', [MemoryController::class, 'report'])->name('memo
 Route::post('/resonate/{memory}', [MemoryController::class, 'resonate'])->name('memories.resonate');
 Route::post('/annotate/{memory}', [MemoryController::class, 'annotate'])->name('memories.annotate');
 
+Route::post('/admin/exit', [AdminController::class, 'exit'])->name('admin.exit');
+
 // Admin routes (basic auth protected)
 Route::middleware('auth.basic')->prefix('admin')->group(function () {
+    Route::get('/enter', [AdminController::class, 'enter'])->name('admin.enter');
     Route::get('/', [AdminController::class, 'index'])->name('admin.index');
     Route::post('/approve/{memory}', [AdminController::class, 'approve'])->name('admin.approve');
     Route::post('/reject/{memory}', [AdminController::class, 'reject'])->name('admin.reject');
+    Route::post('/delete/{memory}', [AdminController::class, 'destroy'])->name('admin.destroy');
     Route::post('/annotations/{annotation}/approve', [AdminController::class, 'approveAnnotation'])->name('admin.annotations.approve');
     Route::post('/annotations/{annotation}/reject', [AdminController::class, 'rejectAnnotation'])->name('admin.annotations.reject');
+    Route::post('/annotations/{annotation}/delete', [AdminController::class, 'destroyAnnotation'])->name('admin.annotations.destroy');
 });

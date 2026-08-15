@@ -96,8 +96,13 @@
                 @php $reactionEmoji = ['fire' => '🔥', 'goat' => '🐐', 'cry' => '😭', 'hype' => '🙌']; @endphp
                 @foreach($memories as $memory)
                     @php $reactionCounts = $memory->resonates->countBy('type'); @endphp
-                    <article class="memory-card">
-                        <p class="memory-body" data-memory-id="{{ $memory->id }}">{!! \App\Support\AnnotationRenderer::render($memory) !!}</p>
+                    <article class="memory-card {{ $memory->status !== 'approved' ? 'memory-card-' . $memory->status : '' }}">
+                        @auth
+                            @if($memory->status !== 'approved')
+                                <span class="status-badge status-{{ $memory->status }}">{{ $memory->status }}</span>
+                            @endif
+                        @endauth
+                        <p class="memory-body" data-memory-id="{{ $memory->id }}">{!! \App\Support\AnnotationRenderer::render($memory, auth()->check()) !!}</p>
                         <div class="memory-tags">
                             @foreach($memory->tags as $tag)
                                 <a href="/?tag={{ $tag->slug }}"
@@ -120,6 +125,26 @@
                                 @csrf
                                 <button type="submit" class="report-btn">report</button>
                             </form>
+                            @auth
+                                <div class="admin-actions">
+                                    @if($memory->status !== 'approved')
+                                        <form action="{{ route('admin.approve', $memory) }}" method="POST">
+                                            @csrf
+                                            <button type="submit" class="admin-btn admin-btn-approve">approve</button>
+                                        </form>
+                                    @endif
+                                    @if($memory->status !== 'rejected')
+                                        <form action="{{ route('admin.reject', $memory) }}" method="POST">
+                                            @csrf
+                                            <button type="submit" class="admin-btn admin-btn-reject">reject</button>
+                                        </form>
+                                    @endif
+                                    <form action="{{ route('admin.destroy', $memory) }}" method="POST" onsubmit="return confirm('Delete this memory permanently?');">
+                                        @csrf
+                                        <button type="submit" class="admin-btn admin-btn-delete">delete</button>
+                                    </form>
+                                </div>
+                            @endauth
                         </div>
                     </article>
                 @endforeach
@@ -545,6 +570,88 @@
         color: var(--text-muted);
         padding: 0.3rem 0.1rem;
     }
+
+    /* Admin mode */
+    .memory-card-pending { border-color: rgba(200,135,42,0.4); }
+    .memory-card-rejected { border-color: rgba(200,70,70,0.4); opacity: 0.7; }
+
+    .status-badge {
+        display: inline-block;
+        font-size: 0.62rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        font-weight: 600;
+        padding: 0.2rem 0.55rem;
+        border-radius: 3px;
+        margin-bottom: 0.75rem;
+    }
+
+    .status-pending { background: rgba(200,135,42,0.15); color: var(--amber-light); }
+    .status-rejected { background: rgba(200,70,70,0.15); color: #e87070; }
+
+    .admin-actions {
+        display: inline-flex;
+        gap: 0.75rem;
+        margin-left: auto;
+        padding-left: 1rem;
+        border-left: 1px solid var(--border2);
+    }
+
+    .admin-actions form { margin: 0; }
+
+    .admin-btn {
+        background: none;
+        border: none;
+        font-family: 'Inter', sans-serif;
+        font-size: 0.65rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        font-weight: 500;
+        cursor: pointer;
+        padding: 0;
+    }
+
+    .admin-btn-approve { color: #6fbf73; }
+    .admin-btn-approve:hover { color: #8fdf93; }
+    .admin-btn-reject { color: var(--amber); }
+    .admin-btn-reject:hover { color: var(--amber-light); }
+    .admin-btn-delete { color: #e87070; }
+    .admin-btn-delete:hover { color: #ff9090; }
+
+    .annotation-pending {
+        background: rgba(200,135,42,0.08);
+        border-bottom: 1px dashed rgba(200,135,42,0.5);
+        color: var(--text-muted);
+    }
+
+    .annotation-rejected {
+        background: rgba(200,70,70,0.08);
+        border-bottom: 1px dashed rgba(200,70,70,0.5);
+        color: var(--text-muted);
+        text-decoration: line-through;
+    }
+
+    .annotation-admin {
+        display: inline-flex;
+        gap: 0.25rem;
+        margin-left: 0.15rem;
+        vertical-align: super;
+    }
+
+    .annotation-admin-form { display: inline; margin: 0; }
+
+    .annotation-admin-form button {
+        background: var(--surface2);
+        border: 1px solid var(--border2);
+        border-radius: 3px;
+        font-size: 0.6rem;
+        line-height: 1;
+        padding: 0.1rem 0.3rem;
+        cursor: pointer;
+    }
+
+    .annotation-admin-form button[title="Approve annotation"] { color: #6fbf73; }
+    .annotation-admin-form button[title="Reject annotation"] { color: #e87070; }
 
     @keyframes resonatePulse {
         0% { transform: scale(1); }

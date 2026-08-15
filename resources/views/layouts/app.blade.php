@@ -160,6 +160,19 @@
             box-shadow: 0 0 25px var(--amber-glow);
         }
 
+        .admin-toggle-form { margin: 0; }
+
+        .admin-toggle {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .admin-toggle-on {
+            color: var(--amber-light) !important;
+        }
+
         /* Main content */
         main {
             position: relative;
@@ -440,6 +453,14 @@
     <div class="nav-right">
         <a href="/" class="nav-link">Feed</a>
         <a href="/post" class="nav-cta">Share a memory</a>
+        @auth
+            <form action="{{ route('admin.exit') }}" method="POST" class="admin-toggle-form">
+                @csrf
+                <button type="submit" class="nav-link admin-toggle admin-toggle-on">Admin mode: on</button>
+            </form>
+        @else
+            <a href="{{ route('admin.enter') }}" class="nav-link admin-toggle">Admin</a>
+        @endauth
     </div>
 </nav>
 
