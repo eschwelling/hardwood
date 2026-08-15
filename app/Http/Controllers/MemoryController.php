@@ -5,11 +5,16 @@ namespace App\Http\Controllers;
 use App\Data\NbaOnThisDay;
 use App\Models\Memory;
 use App\Models\Tag;
+use App\Services\ModerationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 
 class MemoryController extends Controller
 {
+    public function __construct(private ModerationService $moderation)
+    {
+    }
+
     public function index(Request $request)
     {
         $query = Memory::approved()
@@ -52,13 +57,20 @@ class MemoryController extends Controller
             return back()->withErrors(['body' => 'You can only post 3 memories per day.']);
         }
 
+        $status = $this->moderation->needsReview($validated['body']) ? 'pending' : 'approved';
+
         $memory = Memory::create([
             'body'    => $validated['body'],
             'ip_hash' => $ipHash,
-            'status'  => 'approved', // TODO: add OpenAI moderation
+            'status'  => $status,
         ]);
 
         $memory->tags()->attach($validated['tag_ids']);
+
+        if ($status === 'pending') {
+            return redirect()->route('memories.index')
+                ->with('success', 'Thanks — your memory is in for a quick review before it goes live. 🏀');
+        }
 
         // Echo: surface one other memory that shares a tag, so the poster
         // sees they're not the only one who remembers this.
