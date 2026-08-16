@@ -195,7 +195,7 @@
         transform: translateX(-50%);
         width: 800px;
         height: 600px;
-        background: radial-gradient(ellipse, rgba(200,135,42,0.07) 0%, transparent 65%);
+        background: radial-gradient(ellipse, rgba(var(--amber-rgb),0.07) 0%, transparent 65%);
         pointer-events: none;
     }
 
@@ -572,7 +572,7 @@
     }
 
     /* Admin mode */
-    .memory-card-pending { border-color: rgba(200,135,42,0.4); }
+    .memory-card-pending { border-color: rgba(var(--amber-rgb),0.4); }
     .memory-card-rejected { border-color: rgba(200,70,70,0.4); opacity: 0.7; }
 
     .status-badge {
@@ -586,7 +586,7 @@
         margin-bottom: 0.75rem;
     }
 
-    .status-pending { background: rgba(200,135,42,0.15); color: var(--amber-light); }
+    .status-pending { background: rgba(var(--amber-rgb),0.15); color: var(--amber-light); }
     .status-rejected { background: rgba(200,70,70,0.15); color: #e87070; }
 
     .admin-actions {
@@ -619,8 +619,8 @@
     .admin-btn-delete:hover { color: #ff9090; }
 
     .annotation-pending {
-        background: rgba(200,135,42,0.08);
-        border-bottom: 1px dashed rgba(200,135,42,0.5);
+        background: rgba(var(--amber-rgb),0.08);
+        border-bottom: 1px dashed rgba(var(--amber-rgb),0.5);
         color: var(--text-muted);
     }
 
@@ -985,21 +985,25 @@
         canvas.height = H;
         const ctx = canvas.getContext('2d');
 
+        const rootStyle = getComputedStyle(document.documentElement);
+        const amberRgb = rootStyle.getPropertyValue('--amber-rgb').trim() || '200,135,42';
+        const amberHex = rootStyle.getPropertyValue('--amber').trim() || '#c8872a';
+
         ctx.fillStyle = '#080706';
         ctx.fillRect(0, 0, W, H);
 
         const glow = ctx.createRadialGradient(W / 2, H * 0.32, 0, W / 2, H * 0.32, W * 0.7);
-        glow.addColorStop(0, 'rgba(200,135,42,0.16)');
-        glow.addColorStop(1, 'rgba(200,135,42,0)');
+        glow.addColorStop(0, `rgba(${amberRgb},0.16)`);
+        glow.addColorStop(1, `rgba(${amberRgb},0)`);
         ctx.fillStyle = glow;
         ctx.fillRect(0, 0, W, H);
 
-        ctx.strokeStyle = 'rgba(200,135,42,0.35)';
+        ctx.strokeStyle = `rgba(${amberRgb},0.35)`;
         ctx.lineWidth = 2;
         ctx.strokeRect(40, 40, W - 80, H - 80);
 
         ctx.textAlign = 'center';
-        ctx.fillStyle = '#c8872a';
+        ctx.fillStyle = amberHex;
         ctx.font = '700 22px Inter, sans-serif';
         ctx.fillText('R A F T E R S', W / 2, 140);
 

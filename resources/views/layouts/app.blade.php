@@ -19,10 +19,11 @@
             --surface2: #191612;
             --border: #1e1b14;
             --border2: #28231a;
+            --amber-rgb: 200,135,42;
             --amber: #c8872a;
             --amber-light: #e8a84a;
-            --amber-dim: rgba(200,135,42,0.1);
-            --amber-glow: rgba(200,135,42,0.2);
+            --amber-dim: rgba(var(--amber-rgb),0.1);
+            --amber-glow: rgba(var(--amber-rgb),0.2);
             --text: #f0e8d8;
             --text-muted: #6a6050;
             --text-dim: #2e2820;
@@ -59,7 +60,7 @@
             position: fixed;
             width: 36px;
             height: 36px;
-            border: 1px solid rgba(200,135,42,0.4);
+            border: 1px solid rgba(var(--amber-rgb),0.4);
             border-radius: 50%;
             pointer-events: none;
             z-index: 9998;
@@ -171,6 +172,26 @@
 
         .admin-toggle-on {
             color: var(--amber-light) !important;
+        }
+
+        .team-picker {
+            background: var(--surface);
+            border: 1px solid var(--border2);
+            color: var(--text-muted);
+            font-family: 'Inter', sans-serif;
+            font-size: 0.68rem;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            padding: 0.45rem 0.5rem;
+            border-radius: 3px;
+            cursor: pointer;
+            max-width: 130px;
+        }
+
+        .team-picker:hover, .team-picker:focus {
+            border-color: var(--amber);
+            color: var(--text);
+            outline: none;
         }
 
         /* Main content */
@@ -347,8 +368,8 @@
         }
 
         .tag-team {
-            color: rgba(200,135,42,0.6);
-            border-color: rgba(200,135,42,0.2);
+            color: rgba(var(--amber-rgb),0.6);
+            border-color: rgba(var(--amber-rgb),0.2);
         }
 
         .tag-team:hover { color: var(--amber); border-color: var(--amber); background: var(--amber-dim); }
@@ -441,6 +462,65 @@
             .report-btn { cursor: pointer; }
         }
     </style>
+    <script>
+        // Team theming — picks a random NBA team's color as the site accent
+        // on every load, unless one is pinned via the picker in the nav.
+        // Runs synchronously before <body> paints to avoid a flash of the
+        // default color. Only sets --amber/--amber-light/--amber-rgb; every
+        // other color in the site (glows, dims, borders) is derived from
+        // those via CSS so this is the only place team color logic lives.
+        (function () {
+            window.RAFTERS_TEAMS = [
+                { name: 'Atlanta Hawks', color: '#E13A3E' },
+                { name: 'Boston Celtics', color: '#008348' },
+                { name: 'Brooklyn Nets', color: '#F2F2F2' },
+                { name: 'Charlotte Hornets', color: '#00A8B0' },
+                { name: 'Chicago Bulls', color: '#CE1141' },
+                { name: 'Cleveland Cavaliers', color: '#FDBB30' },
+                { name: 'Dallas Mavericks', color: '#0064B1' },
+                { name: 'Denver Nuggets', color: '#FEC524' },
+                { name: 'Detroit Pistons', color: '#ED174C' },
+                { name: 'Golden State Warriors', color: '#FDB927' },
+                { name: 'Houston Rockets', color: '#F9423A' },
+                { name: 'Indiana Pacers', color: '#FFC633' },
+                { name: 'LA Clippers', color: '#E0115F' },
+                { name: 'LA Lakers', color: '#6F2DA8' },
+                { name: 'Memphis Grizzlies', color: '#5D76A9' },
+                { name: 'Miami Heat', color: '#F9A01B' },
+                { name: 'Milwaukee Bucks', color: '#00A94F' },
+                { name: 'Minnesota Timberwolves', color: '#78BE20' },
+                { name: 'New Orleans Pelicans', color: '#E31837' },
+                { name: 'New York Knicks', color: '#F58426' },
+                { name: 'Oklahoma City Thunder', color: '#EF3B24' },
+                { name: 'Orlando Magic', color: '#0077C0' },
+                { name: 'Philadelphia 76ers', color: '#006BB6' },
+                { name: 'Phoenix Suns', color: '#E56020' },
+                { name: 'Portland Trail Blazers', color: '#D62828' },
+                { name: 'Sacramento Kings', color: '#5A2D81' },
+                { name: 'San Antonio Spurs', color: '#C4CED4' },
+                { name: 'Toronto Raptors', color: '#753BBD' },
+                { name: 'Utah Jazz', color: '#63C7B2' },
+                { name: 'Washington Wizards', color: '#DC143C' },
+            ];
+
+            const STORE_KEY = 'rafters-team';
+            const pinned = localStorage.getItem(STORE_KEY);
+            const team = window.RAFTERS_TEAMS.find((t) => t.name === pinned)
+                || window.RAFTERS_TEAMS[Math.floor(Math.random() * window.RAFTERS_TEAMS.length)];
+
+            const n = parseInt(team.color.slice(1), 16);
+            const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+            const light = [r, g, b].map((c) => Math.min(255, Math.round(c + (255 - c) * 0.28)));
+
+            const root = document.documentElement.style;
+            root.setProperty('--amber-rgb', `${r},${g},${b}`);
+            root.setProperty('--amber', team.color);
+            root.setProperty('--amber-light', `rgb(${light[0]},${light[1]},${light[2]})`);
+
+            window.RAFTERS_CURRENT_TEAM = team.name;
+            window.RAFTERS_PINNED_TEAM = pinned;
+        })();
+    </script>
 </head>
 <body>
 
@@ -452,6 +532,7 @@
     <a href="/" class="logo">Rafters</a>
     <div class="nav-right">
         <a href="/" class="nav-link">Feed</a>
+        <select id="team-theme-picker" class="team-picker" title="Team theme"></select>
         <a href="/post" class="nav-cta">Share a memory</a>
         @auth
             <form action="{{ route('admin.exit') }}" method="POST" class="admin-toggle-form">
@@ -497,6 +578,38 @@
         requestAnimationFrame(animateRing);
     }
     animateRing();
+
+    // Team theme picker — lets you pin a specific team instead of getting
+    // a random one every reload. Colors themselves are already applied by
+    // the inline script in <head>; this just builds/wires the <select>.
+    document.addEventListener('DOMContentLoaded', () => {
+        const picker = document.getElementById('team-theme-picker');
+        if (picker) {
+            const randomOption = document.createElement('option');
+            randomOption.value = '';
+            randomOption.textContent = '🎲 Random';
+            picker.appendChild(randomOption);
+
+            window.RAFTERS_TEAMS.forEach((team) => {
+                const option = document.createElement('option');
+                option.value = team.name;
+                option.textContent = team.name;
+                if (team.name === window.RAFTERS_PINNED_TEAM) {
+                    option.selected = true;
+                }
+                picker.appendChild(option);
+            });
+
+            picker.addEventListener('change', () => {
+                if (picker.value) {
+                    localStorage.setItem('rafters-team', picker.value);
+                } else {
+                    localStorage.removeItem('rafters-team');
+                }
+                location.reload();
+            });
+        }
+    });
 
     // Animate memory cards on scroll
     document.addEventListener('DOMContentLoaded', () => {
