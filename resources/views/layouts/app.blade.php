@@ -93,6 +93,33 @@
             opacity: 0.5;
         }
 
+        /* Ambient background — soft glows in the current team color, drifting
+           slowly behind everything. Fixed so it reads as atmosphere rather
+           than scrolling content. */
+        body::after {
+            content: '';
+            position: fixed;
+            inset: -10%;
+            z-index: -1;
+            pointer-events: none;
+            background:
+                radial-gradient(ellipse 700px 550px at 12% 15%, rgba(var(--amber-rgb),0.10), transparent 60%),
+                radial-gradient(ellipse 800px 650px at 88% 55%, rgba(var(--amber-rgb),0.07), transparent 62%),
+                radial-gradient(ellipse 600px 550px at 45% 95%, rgba(var(--amber-rgb),0.06), transparent 60%),
+                radial-gradient(ellipse 500px 500px at 75% 10%, rgba(var(--amber-rgb),0.05), transparent 55%);
+            animation: ambientDrift 40s ease-in-out infinite alternate;
+        }
+
+        @keyframes ambientDrift {
+            0%   { transform: translate(0%, 0%) scale(1); }
+            50%  { transform: translate(-1.5%, 1%) scale(1.05); }
+            100% { transform: translate(1.5%, -1%) scale(1.02); }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            body::after { animation: none; }
+        }
+
         /* Nav */
         nav {
             position: fixed;
