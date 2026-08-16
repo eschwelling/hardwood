@@ -40,7 +40,14 @@ class MemoryController extends Controller
         $tags = Tag::orderBy('type')->orderBy('name')->get()->groupBy('type');
         $onThisDay = NbaOnThisDay::forDate(now());
 
-        return view('memories.index', compact('memories', 'tags', 'onThisDay'));
+        $leaderboard = Memory::approved()
+            ->withCount('resonates')
+            ->having('resonates_count', '>', 0)
+            ->orderByDesc('resonates_count')
+            ->take(5)
+            ->get();
+
+        return view('memories.index', compact('memories', 'tags', 'onThisDay', 'leaderboard'));
     }
 
     public function create()

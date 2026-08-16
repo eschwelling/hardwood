@@ -38,6 +38,22 @@
             </p>
         </div>
 
+        {{-- Leaderboard: top resonated memories --}}
+        @if($leaderboard->isNotEmpty())
+            <div class="leaderboard">
+                <span class="leaderboard-label">🔥 Most Resonated</span>
+                <ol class="leaderboard-list">
+                    @foreach($leaderboard as $i => $memory)
+                        <li class="leaderboard-item">
+                            <span class="leaderboard-rank">{{ $i + 1 }}</span>
+                            <p class="leaderboard-body">{{ \Illuminate\Support\Str::limit($memory->body, 110) }}</p>
+                            <span class="leaderboard-count">{{ $memory->resonates_count }}</span>
+                        </li>
+                    @endforeach
+                </ol>
+            </div>
+        @endif
+
         {{-- Echo: a related memory surfaced right after posting --}}
         @if($echo = session('echo'))
             <div class="echo-card">
@@ -339,6 +355,63 @@
     }
 
     .otd-link:hover { color: var(--amber-light); }
+
+    /* Leaderboard */
+    .leaderboard {
+        padding: 1.1rem 1.5rem;
+        margin-bottom: 1.5rem;
+        border: 1px solid var(--border2);
+        border-left: 2px solid var(--amber);
+        background: var(--surface);
+    }
+
+    .leaderboard-label {
+        display: block;
+        font-size: 0.65rem;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: var(--amber);
+        font-weight: 600;
+        margin-bottom: 0.9rem;
+    }
+
+    .leaderboard-list {
+        list-style: none;
+        display: flex;
+        flex-direction: column;
+        gap: 0.7rem;
+    }
+
+    .leaderboard-item {
+        display: flex;
+        align-items: baseline;
+        gap: 0.75rem;
+    }
+
+    .leaderboard-rank {
+        font-family: 'Playfair Display', serif;
+        font-weight: 700;
+        font-style: italic;
+        font-size: 0.95rem;
+        color: var(--text-dim);
+        width: 1.2rem;
+        flex-shrink: 0;
+    }
+
+    .leaderboard-body {
+        flex: 1;
+        font-size: 0.82rem;
+        color: var(--text-muted);
+        line-height: 1.5;
+    }
+
+    .leaderboard-count {
+        font-size: 0.72rem;
+        color: var(--amber);
+        font-weight: 600;
+        flex-shrink: 0;
+        white-space: nowrap;
+    }
 
     /* Echo card */
     .echo-card {

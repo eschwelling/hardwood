@@ -654,6 +654,45 @@
             });
         });
     });
+
+    // Card tilt — subtle 3D parallax that follows the cursor, skipped on
+    // touch devices and when a selection is being dragged (so it doesn't
+    // fight annotation text-selection) or reduced-motion is requested.
+    document.addEventListener('DOMContentLoaded', () => {
+        const canTilt = window.matchMedia('(hover: hover)').matches
+            && !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+        if (!canTilt) return;
+
+        document.querySelectorAll('.memory-card').forEach((card) => {
+            card.addEventListener('mousemove', (e) => {
+                if (e.buttons !== 0) return;
+
+                const rect = card.getBoundingClientRect();
+                const x = (e.clientX - rect.left) / rect.width - 0.5;
+                const y = (e.clientY - rect.top) / rect.height - 0.5;
+
+                gsap.to(card, {
+                    rotateX: -y * 6,
+                    rotateY: x * 6,
+                    transformPerspective: 900,
+                    duration: 0.4,
+                    ease: 'power2.out',
+                    overwrite: 'auto',
+                });
+            });
+
+            card.addEventListener('mouseleave', () => {
+                gsap.to(card, {
+                    rotateX: 0,
+                    rotateY: 0,
+                    duration: 0.6,
+                    ease: 'power2.out',
+                    overwrite: 'auto',
+                });
+            });
+        });
+    });
 </script>
 
 @yield('scripts')
