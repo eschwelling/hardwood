@@ -40,12 +40,17 @@ class MemoryController extends Controller
         $tags = Tag::orderBy('type')->orderBy('name')->get()->groupBy('type');
         $onThisDay = NbaOnThisDay::forDate(now());
 
+        // Postgres won't let HAVING reference a withCount() alias (unlike
+        // MySQL), so filter out zero-count rows in PHP instead — ORDER BY
+        // desc already guarantees anything with real resonates sorts above
+        // the zero-count ones, so this can't drop a memory that belongs here.
         $leaderboard = Memory::approved()
             ->withCount('resonates')
-            ->having('resonates_count', '>', 0)
             ->orderByDesc('resonates_count')
             ->take(5)
-            ->get();
+            ->get()
+            ->filter(fn ($memory) => $memory->resonates_count > 0)
+            ->values();
 
         return view('memories.index', compact('memories', 'tags', 'onThisDay', 'leaderboard'));
     }
