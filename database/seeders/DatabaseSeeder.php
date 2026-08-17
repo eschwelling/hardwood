@@ -12,6 +12,7 @@ class DatabaseSeeder extends Seeder
             TagSeeder::class,
             DunkSeeder::class,
             VenueSeeder::class,
+            MemorySeeder::class,
             AdminUserSeeder::class,
         ]);
     }
