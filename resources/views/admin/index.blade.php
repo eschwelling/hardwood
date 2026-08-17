@@ -91,7 +91,7 @@
             <p class="memory-body" style="margin-bottom:0.5rem;">{{ $mixtape->title }}</p>
 
             <p style="font-size:0.78rem; color:var(--text-muted); margin-bottom:1rem;">
-                {{ $mixtape->memories_count }} {{ \Illuminate\Support\Str::plural('track', $mixtape->memories_count) }}
+                {{ $mixtape->memories_count + $mixtape->dunks_count }} {{ \Illuminate\Support\Str::plural('track', $mixtape->memories_count + $mixtape->dunks_count) }}
                 @if($mixtape->team_name)
                     · {{ $mixtape->team_name }}
                 @endif
@@ -112,5 +112,34 @@
     @endforeach
 
     {{ $pendingMixtapes->links() }}
+@endif
+
+<h1 style="font-family:'Playfair Display',serif; font-weight:400; font-size:1.6rem; color:var(--amber); margin:3rem 0 2rem;">
+    Pending Dunks
+</h1>
+
+@if($pendingDunks->isEmpty())
+    <div class="empty">
+        <p>No dunks waiting on review.</p>
+    </div>
+@else
+    @foreach($pendingDunks as $dunk)
+        <div class="memory-card" style="padding: 1.5rem; background: var(--surface); border: 1px solid var(--border); margin-bottom: 1rem;">
+            <p class="memory-body">{{ $dunk->body }}</p>
+
+            <div style="display:flex; gap:1rem;">
+                <form action="{{ route('admin.dunks.approve', $dunk) }}" method="POST">
+                    @csrf
+                    <button type="submit" class="btn btn-primary" style="padding:0.5rem 1.25rem; font-size:0.78rem;">Approve</button>
+                </form>
+                <form action="{{ route('admin.dunks.reject', $dunk) }}" method="POST">
+                    @csrf
+                    <button type="submit" class="btn btn-ghost" style="padding:0.5rem 1.25rem; font-size:0.78rem; border-color:#c84040; color:#e87070;">Reject</button>
+                </form>
+            </div>
+        </div>
+    @endforeach
+
+    {{ $pendingDunks->links() }}
 @endif
 @endsection

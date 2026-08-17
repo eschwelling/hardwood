@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Annotation;
+use App\Models\Dunk;
 use App\Models\Memory;
 use App\Models\Mixtape;
 use Illuminate\Http\Request;
@@ -48,9 +49,10 @@ class AdminController extends Controller
     {
         $pending = Memory::pending()->with('tags', 'reports')->latest()->paginate(20, ['*'], 'page');
         $pendingAnnotations = Annotation::pending()->with('memory')->latest()->paginate(20, ['*'], 'annotations_page');
-        $pendingMixtapes = Mixtape::pending()->withCount('memories')->latest()->paginate(20, ['*'], 'mixtapes_page');
+        $pendingMixtapes = Mixtape::pending()->withCount(['memories', 'dunks'])->latest()->paginate(20, ['*'], 'mixtapes_page');
+        $pendingDunks = Dunk::pending()->latest()->paginate(20, ['*'], 'dunks_page');
 
-        return view('admin.index', compact('pending', 'pendingAnnotations', 'pendingMixtapes'));
+        return view('admin.index', compact('pending', 'pendingAnnotations', 'pendingMixtapes', 'pendingDunks'));
     }
 
     public function approve(Memory $memory)
@@ -99,5 +101,23 @@ class AdminController extends Controller
     {
         $mixtape->update(['status' => 'rejected']);
         return back()->with('success', 'Mix tape rejected.');
+    }
+
+    public function approveDunk(Dunk $dunk)
+    {
+        $dunk->update(['status' => 'approved']);
+        return back()->with('success', 'Dunk approved.');
+    }
+
+    public function rejectDunk(Dunk $dunk)
+    {
+        $dunk->update(['status' => 'rejected']);
+        return back()->with('success', 'Dunk rejected.');
+    }
+
+    public function destroyDunk(Dunk $dunk)
+    {
+        $dunk->delete();
+        return back()->with('success', 'Dunk deleted.');
     }
 }

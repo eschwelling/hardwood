@@ -137,7 +137,7 @@
                                 @endforeach
                             </div>
                             <button type="button" class="card-btn">card</button>
-                            <button type="button" class="mixtape-add-btn" data-memory-id="{{ $memory->id }}" data-excerpt="{{ \Illuminate\Support\Str::limit($memory->body, 90) }}">+ tape</button>
+                            <button type="button" class="mixtape-add-btn" data-type="memory" data-track-id="{{ $memory->id }}" data-excerpt="{{ \Illuminate\Support\Str::limit($memory->body, 90) }}">+ tape</button>
                             <form action="/report/{{ $memory->id }}" method="POST" class="report-form">
                                 @csrf
                                 <button type="submit" class="report-btn">report</button>

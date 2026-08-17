@@ -21,8 +21,9 @@
         <div class="mixtape-cover">
             <span class="mixtape-cover-label">🎧 Mix Tape</span>
             <h1 class="mixtape-page-title">{{ $mixtape->title }}</h1>
+            @php($trackCount = $mixtape->memories->count() + $mixtape->dunks->count())
             <p class="mixtape-cover-meta">
-                {{ $mixtape->memories->count() }} {{ \Illuminate\Support\Str::plural('track', $mixtape->memories->count()) }}
+                {{ $trackCount }} {{ \Illuminate\Support\Str::plural('track', $trackCount) }}
                 @if($mixtape->team_name)
                     · mixed to the tune of {{ $mixtape->team_name }}
                 @endif
@@ -30,16 +31,22 @@
         </div>
 
         <ol class="mixtape-page-tracklist">
-            @foreach($mixtape->memories as $i => $memory)
+            @foreach($mixtape->tracks() as $i => $track)
+                @php($isDunk = $track instanceof \App\Models\Dunk)
                 <li class="mixtape-page-track">
                     <span class="mixtape-page-track-num">{{ str_pad($i + 1, 2, '0', STR_PAD_LEFT) }}</span>
                     <div class="mixtape-page-track-body">
-                        <p class="mixtape-page-track-text">{{ $memory->body }}</p>
-                        <div class="memory-tags">
-                            @foreach($memory->tags as $tag)
-                                <span class="tag {{ $tag->type === 'team' ? 'tag-team' : '' }}">{{ $tag->name }}</span>
-                            @endforeach
-                        </div>
+                        @if($isDunk)
+                            <span class="mixtape-page-track-kind">🏀 Dunk Archive</span>
+                        @endif
+                        <p class="mixtape-page-track-text">{{ $track->body }}</p>
+                        @unless($isDunk)
+                            <div class="memory-tags">
+                                @foreach($track->tags as $tag)
+                                    <span class="tag {{ $tag->type === 'team' ? 'tag-team' : '' }}">{{ $tag->name }}</span>
+                                @endforeach
+                            </div>
+                        @endunless
                     </div>
                 </li>
             @endforeach
@@ -123,6 +130,16 @@
         line-height: 1.7;
         color: var(--text);
         margin-bottom: 0.85rem;
+    }
+
+    .mixtape-page-track-kind {
+        display: block;
+        font-size: 0.65rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--amber);
+        font-weight: 600;
+        margin-bottom: 0.5rem;
     }
 
     .mixtape-back {

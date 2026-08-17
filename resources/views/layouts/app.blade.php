@@ -268,6 +268,7 @@
             max-height: 85vh;
             display: flex;
             flex-direction: column;
+            overflow-y: auto;
             background: var(--surface);
             border: 1px solid var(--border2);
             border-top: 2px solid var(--amber);
@@ -312,8 +313,8 @@
 
         .mixtape-tracklist {
             list-style: none;
+            max-height: 220px;
             overflow-y: auto;
-            flex: 1;
             display: flex;
             flex-direction: column;
             gap: 0.6rem;
@@ -376,6 +377,104 @@
             text-align: center;
             border: none;
             cursor: pointer;
+        }
+
+        .mixtape-archive {
+            border-top: 1px solid var(--border2);
+            padding-top: 1.25rem;
+            margin-top: 1.5rem;
+        }
+
+        .mixtape-archive-heading {
+            font-family: 'Playfair Display', serif;
+            font-weight: 400;
+            font-size: 0.95rem;
+            color: var(--amber);
+            margin-bottom: 0.35rem;
+        }
+
+        .mixtape-archive-hint {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            margin-bottom: 0.85rem;
+        }
+
+        .mixtape-archive-list {
+            max-height: 160px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            font-size: 0.78rem;
+            color: var(--text-muted);
+        }
+
+        .mixtape-archive-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            line-height: 1.5;
+        }
+
+        .mixtape-archive-item span {
+            flex: 1;
+        }
+
+        .mixtape-archive-item button {
+            flex-shrink: 0;
+            background: var(--surface2);
+            border: 1px solid var(--border2);
+            border-radius: 3px;
+            color: var(--text-muted);
+            font-size: 0.62rem;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            padding: 0.35rem 0.6rem;
+            cursor: pointer;
+            transition: color 0.2s, border-color 0.2s;
+        }
+
+        .mixtape-archive-item button:hover { color: var(--amber); border-color: var(--amber); }
+        .mixtape-archive-item button.active { color: var(--amber-light); border-color: var(--amber); }
+
+        .mixtape-archive-submit summary {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            cursor: pointer;
+            margin-bottom: 0.75rem;
+        }
+
+        .mixtape-archive-submit summary:hover { color: var(--amber); }
+
+        .mixtape-dunk-input {
+            width: 100%;
+            background: var(--surface2);
+            border: 1px solid var(--border2);
+            border-radius: 4px;
+            color: var(--text);
+            font-family: 'Inter', sans-serif;
+            font-size: 0.8rem;
+            padding: 0.6rem 0.75rem;
+            min-height: 70px;
+            resize: vertical;
+            margin-bottom: 0.6rem;
+        }
+
+        .mixtape-dunk-input:focus { outline: none; border-color: var(--amber); }
+
+        .mixtape-dunk-submit {
+            width: 100%;
+            text-align: center;
+            font-size: 0.68rem;
+            padding: 0.6rem;
+            cursor: pointer;
+        }
+
+        .mixtape-dunk-status {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            margin-top: 0.6rem;
         }
 
         /* Main content */
@@ -853,10 +952,13 @@
 </script>
 
 <script>
-    // Mix tapes — build a personal collection of memories entirely
-    // client-side (no accounts, matching the rest of the site), then "cut"
-    // it once to get a permanent shareable page. The draft persists across
-    // pages via localStorage until it's submitted or cleared.
+    // Mix tapes — build a personal collection of memories and dunk-archive
+    // entries entirely client-side (no accounts, matching the rest of the
+    // site), then "cut" it once to get a permanent shareable page. The
+    // draft persists across pages via localStorage until it's submitted or
+    // cleared. Tracks come from two sources: memory cards on the feed
+    // (already in the DOM) and the dunk archive (fetched lazily from
+    // /dunks the first time the builder opens).
     document.addEventListener('DOMContentLoaded', () => {
         const MIN_TRACKS = {{ \App\Models\Mixtape::MIN_TRACKS }};
         const MAX_TRACKS = {{ \App\Models\Mixtape::MAX_TRACKS }};
@@ -872,7 +974,11 @@
         };
         const saveDraft = () => localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
 
-        let draft = loadDraft(); // [{ id, excerpt }]
+        let draft = loadDraft(); // [{ type: 'memory'|'dunk', id, excerpt }]
+        let archive = null; // lazily-loaded approved dunks
+        let archiveLoading = false;
+
+        const inDraft = (type, id) => draft.some((t) => t.type === type && t.id === id);
 
         const launcher = document.createElement('button');
         launcher.type = 'button';
@@ -886,30 +992,38 @@
 
         const syncAddButtons = () => {
             document.querySelectorAll('.mixtape-add-btn').forEach((btn) => {
-                const inDraft = draft.some((t) => t.id === btn.dataset.memoryId);
-                btn.classList.toggle('active', inDraft);
-                btn.textContent = inDraft ? '✓ added' : '+ tape';
+                const active = inDraft(btn.dataset.type || 'memory', btn.dataset.trackId);
+                btn.classList.toggle('active', active);
+                btn.textContent = active ? '✓ added' : '+ tape';
             });
+            document.querySelectorAll('.mixtape-archive-item button').forEach((btn) => {
+                const active = inDraft('dunk', btn.dataset.trackId);
+                btn.classList.toggle('active', active);
+                btn.textContent = active ? '✓ added' : '+ add';
+            });
+        };
+
+        const toggleTrack = (type, id, excerpt) => {
+            const idx = draft.findIndex((t) => t.type === type && t.id === id);
+
+            if (idx > -1) {
+                draft.splice(idx, 1);
+            } else {
+                if (draft.length >= MAX_TRACKS) {
+                    alert(`A tape only holds ${MAX_TRACKS} tracks. Remove one to add another.`);
+                    return;
+                }
+                draft.push({ type, id, excerpt });
+            }
+
+            saveDraft();
+            syncAddButtons();
+            updateLauncher();
         };
 
         document.querySelectorAll('.mixtape-add-btn').forEach((btn) => {
             btn.addEventListener('click', () => {
-                const id = btn.dataset.memoryId;
-                const idx = draft.findIndex((t) => t.id === id);
-
-                if (idx > -1) {
-                    draft.splice(idx, 1);
-                } else {
-                    if (draft.length >= MAX_TRACKS) {
-                        alert(`A tape only holds ${MAX_TRACKS} tracks. Remove one to add another.`);
-                        return;
-                    }
-                    draft.push({ id, excerpt: btn.dataset.excerpt });
-                }
-
-                saveDraft();
-                syncAddButtons();
-                updateLauncher();
+                toggleTrack(btn.dataset.type || 'memory', btn.dataset.trackId, btn.dataset.excerpt);
             });
         });
 
@@ -923,6 +1037,18 @@
                 <ol class="mixtape-tracklist"></ol>
                 <p class="mixtape-error" style="display:none;"></p>
                 <button type="button" class="btn btn-primary mixtape-submit">Cut this tape 🎙️</button>
+
+                <div class="mixtape-archive">
+                    <h3 class="mixtape-archive-heading">🏀 Dunk Archive</h3>
+                    <p class="mixtape-archive-hint">Splice a legendary dunk into the tape.</p>
+                    <div class="mixtape-archive-list"></div>
+                    <details class="mixtape-archive-submit">
+                        <summary>Add a dunk to the archive</summary>
+                        <textarea class="mixtape-dunk-input" maxlength="500" placeholder="Describe the dunk..."></textarea>
+                        <button type="button" class="btn btn-ghost mixtape-dunk-submit">Submit for review</button>
+                        <p class="mixtape-dunk-status" style="display:none;"></p>
+                    </details>
+                </div>
             </div>
         `;
         document.body.appendChild(overlay);
@@ -930,6 +1056,105 @@
         const tracklistEl = overlay.querySelector('.mixtape-tracklist');
         const errorEl = overlay.querySelector('.mixtape-error');
         const titleInput = overlay.querySelector('.mixtape-title-input');
+        const archiveListEl = overlay.querySelector('.mixtape-archive-list');
+        const dunkInput = overlay.querySelector('.mixtape-dunk-input');
+        const dunkStatusEl = overlay.querySelector('.mixtape-dunk-status');
+
+        function renderArchive() {
+            if (!archive) {
+                archiveListEl.textContent = archiveLoading ? 'Loading…' : '';
+                return;
+            }
+
+            archiveListEl.innerHTML = '';
+
+            if (archive.length === 0) {
+                archiveListEl.textContent = 'No dunks in the archive yet.';
+                return;
+            }
+
+            archive.forEach((dunk) => {
+                const row = document.createElement('div');
+                row.className = 'mixtape-archive-item';
+
+                const excerpt = document.createElement('span');
+                excerpt.textContent = dunk.body;
+
+                const add = document.createElement('button');
+                add.type = 'button';
+                add.dataset.trackId = dunk.id;
+                const active = inDraft('dunk', dunk.id);
+                add.classList.toggle('active', active);
+                add.textContent = active ? '✓ added' : '+ add';
+                add.addEventListener('click', () => toggleTrack('dunk', dunk.id, dunk.body.slice(0, 90)));
+
+                row.append(excerpt, add);
+                archiveListEl.appendChild(row);
+            });
+        }
+
+        function loadArchive() {
+            if (archive || archiveLoading) return;
+            archiveLoading = true;
+            renderArchive();
+
+            fetch('{{ route("dunks.index") }}', { headers: { Accept: 'application/json' } })
+                .then((res) => res.json())
+                .then((data) => {
+                    archive = Array.isArray(data) ? data : [];
+                })
+                .catch(() => {
+                    archive = [];
+                })
+                .finally(() => {
+                    archiveLoading = false;
+                    renderArchive();
+                });
+        }
+
+        overlay.querySelector('.mixtape-dunk-submit').addEventListener('click', () => {
+            const body = dunkInput.value.trim();
+            dunkStatusEl.style.display = 'block';
+
+            if (body.length < 10) {
+                dunkStatusEl.textContent = 'Give it at least a few words.';
+                return;
+            }
+
+            dunkStatusEl.textContent = 'Submitting…';
+
+            fetch('{{ route("dunks.store") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                },
+                body: JSON.stringify({ body }),
+            })
+                .then((res) => res.json().then((data) => ({ ok: res.ok, data })))
+                .then(({ ok, data }) => {
+                    if (!ok) {
+                        dunkStatusEl.textContent = data.message || 'Something went wrong.';
+                        return;
+                    }
+
+                    dunkInput.value = '';
+
+                    if (data.status === 'approved') {
+                        dunkStatusEl.textContent = 'Added to the archive.';
+                        if (archive) {
+                            archive.unshift(data);
+                            renderArchive();
+                        }
+                    } else {
+                        dunkStatusEl.textContent = "Submitted — it needs a quick review before it joins the archive.";
+                    }
+                })
+                .catch(() => {
+                    dunkStatusEl.textContent = 'Something went wrong.';
+                });
+        });
 
         function renderTracklist() {
             tracklistEl.innerHTML = '';
@@ -944,7 +1169,7 @@
 
                 const excerpt = document.createElement('span');
                 excerpt.className = 'mixtape-track-excerpt';
-                excerpt.textContent = track.excerpt;
+                excerpt.textContent = (track.type === 'dunk' ? '🏀 ' : '') + track.excerpt;
 
                 const controls = document.createElement('span');
                 controls.className = 'mixtape-track-controls';
@@ -989,6 +1214,7 @@
         launcher.addEventListener('click', () => {
             errorEl.style.display = 'none';
             renderTracklist();
+            loadArchive();
             overlay.style.display = 'flex';
         });
 
@@ -1010,7 +1236,7 @@
             }
 
             if (draft.length < MIN_TRACKS) {
-                errorEl.textContent = `Add at least ${MIN_TRACKS} memories to cut a tape.`;
+                errorEl.textContent = `Add at least ${MIN_TRACKS} tracks to cut a tape.`;
                 errorEl.style.display = 'block';
                 return;
             }
@@ -1038,8 +1264,8 @@
             draft.forEach((track) => {
                 const input = document.createElement('input');
                 input.type = 'hidden';
-                input.name = 'memory_ids[]';
-                input.value = track.id;
+                input.name = 'tracks[]';
+                input.value = `${track.type}:${track.id}`;
                 form.appendChild(input);
             });
 

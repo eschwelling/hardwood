@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Dunk;
 use App\Models\Memory;
 use App\Models\Mixtape;
 use App\Services\ModerationService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class MixtapeController extends Controller
 {
@@ -16,19 +18,43 @@ class MixtapeController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'title'         => 'required|string|min:3|max:80',
-            'memory_ids'    => 'required|array|min:' . Mixtape::MIN_TRACKS . '|max:' . Mixtape::MAX_TRACKS,
-            'memory_ids.*'  => 'string|distinct',
-            'team_name'     => 'nullable|string|max:40',
-            'team_color'    => 'nullable|string|max:20',
+            'title'      => 'required|string|min:3|max:80',
+            'tracks'     => 'required|array|min:' . Mixtape::MIN_TRACKS . '|max:' . Mixtape::MAX_TRACKS,
+            'tracks.*'   => 'string|distinct',
+            'team_name'  => 'nullable|string|max:40',
+            'team_color' => 'nullable|string|max:20',
         ]);
 
-        // Only approved memories can end up in a publicly shareable tape,
-        // regardless of what IDs were posted.
-        $memories = Memory::approved()->whereIn('id', $validated['memory_ids'])->get()->keyBy('id');
+        // Each track is "memory:<id>" or "dunk:<id>". Split them up so we
+        // can look up only the approved rows — a publicly shareable tape
+        // can never include something that hasn't cleared moderation,
+        // regardless of what was posted.
+        $memoryIds = [];
+        $dunkIds = [];
+        foreach ($validated['tracks'] as $track) {
+            [$type, $id] = array_pad(explode(':', $track, 2), 2, null);
+            if ($type === 'dunk') {
+                $dunkIds[] = $id;
+            } else {
+                $memoryIds[] = $id;
+            }
+        }
 
-        if ($memories->count() < Mixtape::MIN_TRACKS) {
-            return back()->withErrors(['memory_ids' => 'Not enough available memories to cut a tape.']);
+        $memories = Memory::approved()->whereIn('id', $memoryIds)->get()->keyBy('id');
+        $dunks = Dunk::approved()->whereIn('id', $dunkIds)->get()->keyBy('id');
+
+        $rows = [];
+        foreach ($validated['tracks'] as $track) {
+            [$type, $id] = array_pad(explode(':', $track, 2), 2, null);
+            if ($type === 'dunk' && $dunks->has($id)) {
+                $rows[] = ['type' => Dunk::class, 'id' => $id];
+            } elseif ($type !== 'dunk' && $memories->has($id)) {
+                $rows[] = ['type' => Memory::class, 'id' => $id];
+            }
+        }
+
+        if (count($rows) < Mixtape::MIN_TRACKS) {
+            return back()->withErrors(['tracks' => 'Not enough available tracks to cut a tape.']);
         }
 
         $ipHash = hash_hmac('sha256', $request->ip() . now()->toDateString(), config('app.key'));
@@ -52,12 +78,15 @@ class MixtapeController extends Controller
             'status'     => $status,
         ]);
 
-        $position = 0;
-        foreach ($validated['memory_ids'] as $id) {
-            if ($memories->has($id)) {
-                $mixtape->memories()->attach($id, ['position' => $position++]);
-            }
-        }
+        $now = now();
+        DB::table('mixtape_trackables')->insert(array_map(fn ($row, $position) => [
+            'mixtape_id'     => $mixtape->id,
+            'trackable_type' => $row['type'],
+            'trackable_id'   => $row['id'],
+            'position'       => $position,
+            'created_at'     => $now,
+            'updated_at'     => $now,
+        ], $rows, array_keys($rows)));
 
         return redirect()->route('mixtapes.show', $mixtape);
     }
@@ -69,7 +98,7 @@ class MixtapeController extends Controller
         }
 
         if ($mixtape->status === 'approved') {
-            $mixtape->load(['memories' => fn ($q) => $q->with('tags')]);
+            $mixtape->load(['memories.tags', 'dunks']);
         }
 
         return view('mixtapes.show', compact('mixtape'));

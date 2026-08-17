@@ -4,7 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\MorphToMany;
+use Illuminate\Support\Collection;
 
 class Mixtape extends Model
 {
@@ -25,11 +26,29 @@ class Mixtape extends Model
         'ip_hash',
     ];
 
-    public function memories(): BelongsToMany
+    public function memories(): MorphToMany
     {
-        return $this->belongsToMany(Memory::class, 'mixtape_memory')
+        return $this->morphedByMany(Memory::class, 'trackable', 'mixtape_trackables')
             ->withPivot('position')
-            ->orderBy('mixtape_memory.position');
+            ->orderByPivot('position');
+    }
+
+    public function dunks(): MorphToMany
+    {
+        return $this->morphedByMany(Dunk::class, 'trackable', 'mixtape_trackables')
+            ->withPivot('position')
+            ->orderByPivot('position');
+    }
+
+    /**
+     * The tape's tracklist in play order, memories and dunks interleaved.
+     */
+    public function tracks(): Collection
+    {
+        return $this->memories
+            ->concat($this->dunks)
+            ->sortBy(fn ($track) => $track->pivot->position)
+            ->values();
     }
 
     public function scopeApproved($query)
