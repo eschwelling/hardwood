@@ -790,13 +790,23 @@
         align-items: center;
         justify-content: center;
         opacity: 0;
+        visibility: hidden;
         pointer-events: none;
-        transition: opacity 0.4s ease;
+        transition: opacity 0.4s ease, visibility 0s linear 0.4s;
     }
 
+    /* visibility:hidden (not just opacity:0) matters here — this is a
+       full-viewport backdrop-filter layer that sits fixed over everything
+       else, and Safari is known to ghost/fail to repaint an always-present
+       blurred layer like that during scroll or page transitions when it's
+       only hidden via opacity. visibility keeps it fully out of the paint
+       tree while closed; the delayed transition lets the opacity fade
+       finish first so closing doesn't look abrupt. */
     .reading-overlay.open {
         opacity: 1;
+        visibility: visible;
         pointer-events: auto;
+        transition: opacity 0.4s ease;
     }
 
     .reading-close {
