@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\LookupGameMediaJob;
 use App\Models\Annotation;
 use App\Models\Dunk;
 use App\Models\Memory;
@@ -58,6 +59,11 @@ class AdminController extends Controller
     public function approve(Memory $memory)
     {
         $memory->update(['status' => 'approved']);
+
+        if ($memory->game_date && !$memory->gameMedia) {
+            LookupGameMediaJob::dispatch($memory)->afterResponse();
+        }
+
         return back()->with('success', 'Memory approved.');
     }
 

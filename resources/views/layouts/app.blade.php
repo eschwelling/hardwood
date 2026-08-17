@@ -632,6 +632,24 @@
             gap: 0.4rem;
         }
 
+        .game-media {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.4rem 1.25rem;
+            margin-top: 0.85rem;
+        }
+
+        .game-media-item {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        a.game-media-item:hover { color: var(--amber); }
+        .game-media-item a { color: var(--text-muted); text-decoration: none; transition: color 0.2s; }
+        .game-media-item a:hover { color: var(--amber); }
+
         .tag {
             font-size: 0.65rem;
             letter-spacing: 0.12em;

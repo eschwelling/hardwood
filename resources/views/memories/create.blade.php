@@ -34,6 +34,25 @@
                 </div>
             </div>
 
+            <div class="form-field">
+                <label class="field-label" for="game_date">When was this? (optional)</label>
+                <input
+                    type="date"
+                    id="game_date"
+                    name="game_date"
+                    class="date-input"
+                    max="{{ now()->toDateString() }}"
+                    value="{{ old('game_date') }}"
+                >
+                <div class="field-footer">
+                    @error('game_date')
+                        <span class="field-error">{{ $message }}</span>
+                    @else
+                        <span class="field-hint">If you know the exact date, we'll try to dig up the box score and highlights.</span>
+                    @enderror
+                </div>
+            </div>
+
             @error('tag_ids')
                 <span class="field-error" style="display:block; margin-bottom:1.5rem;">{{ $message }}</span>
             @enderror
@@ -176,6 +195,20 @@
 
     .char-count.warning { color: var(--amber); }
     .char-count.danger { color: #e87070; }
+
+    .date-input {
+        background: var(--surface);
+        border: 1px solid var(--border2);
+        border-radius: 4px;
+        color: var(--text);
+        font-family: 'Inter', sans-serif;
+        font-size: 0.88rem;
+        padding: 0.65rem 0.85rem;
+        cursor: auto;
+        color-scheme: dark;
+    }
+
+    .date-input:focus { outline: none; border-color: var(--amber); }
 
     .checkbox-grid {
         display: grid;

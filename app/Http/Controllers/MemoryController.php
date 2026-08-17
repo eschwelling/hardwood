@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Data\NbaOnThisDay;
+use App\Jobs\LookupGameMediaJob;
 use App\Models\Annotation;
 use App\Models\Memory;
 use App\Models\Resonate;
@@ -28,6 +29,7 @@ class MemoryController extends Controller
                 'tags',
                 'resonates',
                 'annotations' => fn ($q) => $isAdmin ? $q->orderBy('start_offset') : $q->approved()->orderBy('start_offset'),
+                'gameMedia',
             ])
             ->latest();
 
@@ -64,9 +66,10 @@ class MemoryController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'body'    => 'required|string|min:50|max:500',
-            'tag_ids' => 'required|array|min:1|max:5',
+            'body'      => 'required|string|min:50|max:500',
+            'tag_ids'   => 'required|array|min:1|max:5',
             'tag_ids.*' => 'exists:tags,id',
+            'game_date' => 'nullable|date|before_or_equal:today',
         ]);
 
         // Rate limit: 3 posts per IP per day
@@ -82,12 +85,17 @@ class MemoryController extends Controller
         $status = $this->moderation->needsReview($validated['body']) ? 'pending' : 'approved';
 
         $memory = Memory::create([
-            'body'    => $validated['body'],
-            'ip_hash' => $ipHash,
-            'status'  => $status,
+            'body'      => $validated['body'],
+            'game_date' => $validated['game_date'] ?? null,
+            'ip_hash'   => $ipHash,
+            'status'    => $status,
         ]);
 
         $memory->tags()->attach($validated['tag_ids']);
+
+        if ($status === 'approved' && $memory->game_date) {
+            LookupGameMediaJob::dispatch($memory)->afterResponse();
+        }
 
         if ($status === 'pending') {
             return redirect()->route('memories.index')

@@ -127,6 +127,25 @@
                                 </a>
                             @endforeach
                         </div>
+                        @if($memory->gameMedia && ($memory->gameMedia->box_score_summary || $memory->gameMedia->video_url))
+                            <div class="game-media">
+                                @if($memory->gameMedia->box_score_summary)
+                                    <span class="game-media-item">
+                                        📊
+                                        @if($memory->gameMedia->box_score_url)
+                                            <a href="{{ $memory->gameMedia->box_score_url }}" target="_blank" rel="noopener">{{ $memory->gameMedia->box_score_summary }}</a>
+                                        @else
+                                            {{ $memory->gameMedia->box_score_summary }}
+                                        @endif
+                                    </span>
+                                @endif
+                                @if($memory->gameMedia->video_url)
+                                    <a href="{{ $memory->gameMedia->video_url }}" target="_blank" rel="noopener" class="game-media-item">
+                                        🎥 {{ $memory->gameMedia->video_title ?? 'Watch highlights' }}
+                                    </a>
+                                @endif
+                            </div>
+                        @endif
                         <div class="memory-actions">
                             <div class="reaction-group" data-memory-id="{{ $memory->id }}">
                                 @foreach($reactionEmoji as $type => $emoji)
