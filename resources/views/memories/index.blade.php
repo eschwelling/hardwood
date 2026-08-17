@@ -137,6 +137,7 @@
                                 @endforeach
                             </div>
                             <button type="button" class="card-btn">card</button>
+                            <button type="button" class="mixtape-add-btn" data-memory-id="{{ $memory->id }}" data-excerpt="{{ \Illuminate\Support\Str::limit($memory->body, 90) }}">+ tape</button>
                             <form action="/report/{{ $memory->id }}" method="POST" class="report-form">
                                 @csrf
                                 <button type="submit" class="report-btn">report</button>
@@ -453,7 +454,7 @@
     .report-form { margin: 0; }
     .memory-actions .report-btn { margin: 0; }
 
-    .resonate-btn, .card-btn {
+    .resonate-btn, .card-btn, .mixtape-add-btn {
         background: none;
         border: none;
         color: var(--text-dim);
@@ -470,6 +471,9 @@
     }
 
     .card-btn:hover { color: var(--amber); }
+
+    .mixtape-add-btn:hover { color: var(--amber); }
+    .mixtape-add-btn.active { color: var(--amber-light); }
 
     .resonate-btn { color: var(--text-muted); }
     .resonate-btn:hover { color: var(--amber); }
@@ -839,7 +843,7 @@
         .memories-feed { padding-left: 0; border-left: none; }
         .reading-stage { gap: 1rem; }
         .reading-nav { width: 34px; height: 34px; font-size: 1.1rem; }
-        .resonate-btn, .card-btn, .report-btn { cursor: pointer; }
+        .resonate-btn, .card-btn, .report-btn, .mixtape-add-btn { cursor: pointer; }
         .reading-close, .reading-nav { cursor: pointer; }
     }
 </style>

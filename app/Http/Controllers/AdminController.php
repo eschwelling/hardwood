@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Annotation;
 use App\Models\Memory;
+use App\Models\Mixtape;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -47,8 +48,9 @@ class AdminController extends Controller
     {
         $pending = Memory::pending()->with('tags', 'reports')->latest()->paginate(20, ['*'], 'page');
         $pendingAnnotations = Annotation::pending()->with('memory')->latest()->paginate(20, ['*'], 'annotations_page');
+        $pendingMixtapes = Mixtape::pending()->withCount('memories')->latest()->paginate(20, ['*'], 'mixtapes_page');
 
-        return view('admin.index', compact('pending', 'pendingAnnotations'));
+        return view('admin.index', compact('pending', 'pendingAnnotations', 'pendingMixtapes'));
     }
 
     public function approve(Memory $memory)
@@ -85,5 +87,17 @@ class AdminController extends Controller
     {
         $annotation->delete();
         return back()->with('success', 'Annotation deleted.');
+    }
+
+    public function approveMixtape(Mixtape $mixtape)
+    {
+        $mixtape->update(['status' => 'approved']);
+        return back()->with('success', 'Mix tape approved.');
+    }
+
+    public function rejectMixtape(Mixtape $mixtape)
+    {
+        $mixtape->update(['status' => 'rejected']);
+        return back()->with('success', 'Mix tape rejected.');
     }
 }

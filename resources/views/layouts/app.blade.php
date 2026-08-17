@@ -221,6 +221,163 @@
             outline: none;
         }
 
+        /* Mix tapes */
+        .mixtape-launcher {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            z-index: 700;
+            display: none;
+            align-items: center;
+            gap: 0.5rem;
+            background: var(--surface2);
+            border: 1px solid var(--amber);
+            color: var(--amber-light);
+            font-family: 'Inter', sans-serif;
+            font-size: 0.75rem;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            padding: 0.75rem 1.25rem;
+            border-radius: 999px;
+            cursor: pointer;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5), 0 0 20px rgba(var(--amber-rgb),0.15);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .mixtape-launcher:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 14px 34px rgba(0,0,0,0.55), 0 0 26px rgba(var(--amber-rgb),0.25);
+        }
+
+        .mixtape-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 900;
+            background: rgba(6,5,4,0.97);
+            backdrop-filter: blur(10px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        .mixtape-builder {
+            position: relative;
+            width: 100%;
+            max-width: 480px;
+            max-height: 85vh;
+            display: flex;
+            flex-direction: column;
+            background: var(--surface);
+            border: 1px solid var(--border2);
+            border-top: 2px solid var(--amber);
+            padding: 2rem;
+        }
+
+        .mixtape-close {
+            position: absolute;
+            top: 1.25rem;
+            right: 1.5rem;
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 1rem;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+
+        .mixtape-close:hover { color: var(--amber); }
+
+        .mixtape-heading {
+            font-family: 'Playfair Display', serif;
+            font-weight: 400;
+            font-size: 1.4rem;
+            color: var(--amber);
+            margin-bottom: 1.25rem;
+        }
+
+        .mixtape-title-input {
+            width: 100%;
+            background: var(--surface2);
+            border: 1px solid var(--border2);
+            border-radius: 4px;
+            color: var(--text);
+            font-family: 'Inter', sans-serif;
+            font-size: 0.9rem;
+            padding: 0.65rem 0.85rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .mixtape-title-input:focus { outline: none; border-color: var(--amber); }
+
+        .mixtape-tracklist {
+            list-style: none;
+            overflow-y: auto;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 0.6rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .mixtape-track {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .mixtape-track-num {
+            font-family: 'Playfair Display', serif;
+            font-weight: 700;
+            font-style: italic;
+            color: var(--text-dim);
+            font-size: 0.8rem;
+            width: 1.4rem;
+            flex-shrink: 0;
+        }
+
+        .mixtape-track-excerpt {
+            flex: 1;
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            line-height: 1.5;
+        }
+
+        .mixtape-track-controls {
+            display: flex;
+            gap: 0.35rem;
+            flex-shrink: 0;
+        }
+
+        .mixtape-track-controls button {
+            background: var(--surface2);
+            border: 1px solid var(--border2);
+            border-radius: 3px;
+            color: var(--text-muted);
+            font-size: 0.68rem;
+            width: 22px;
+            height: 22px;
+            cursor: pointer;
+        }
+
+        .mixtape-track-controls button:hover:not(:disabled) { color: var(--amber); border-color: var(--amber); }
+        .mixtape-track-controls button:disabled { opacity: 0.3; cursor: default; }
+
+        .mixtape-error {
+            color: #e87070;
+            font-size: 0.78rem;
+            margin-bottom: 1rem;
+        }
+
+        .mixtape-submit {
+            width: 100%;
+            text-align: center;
+            border: none;
+            cursor: pointer;
+        }
+
         /* Main content */
         main {
             position: relative;
@@ -692,6 +849,207 @@
                 });
             });
         });
+    });
+</script>
+
+<script>
+    // Mix tapes — build a personal collection of memories entirely
+    // client-side (no accounts, matching the rest of the site), then "cut"
+    // it once to get a permanent shareable page. The draft persists across
+    // pages via localStorage until it's submitted or cleared.
+    document.addEventListener('DOMContentLoaded', () => {
+        const MIN_TRACKS = {{ \App\Models\Mixtape::MIN_TRACKS }};
+        const MAX_TRACKS = {{ \App\Models\Mixtape::MAX_TRACKS }};
+        const DRAFT_KEY = 'rafters-mixtape-draft';
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+
+        const loadDraft = () => {
+            try {
+                return JSON.parse(localStorage.getItem(DRAFT_KEY) || '[]');
+            } catch {
+                return [];
+            }
+        };
+        const saveDraft = () => localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+
+        let draft = loadDraft(); // [{ id, excerpt }]
+
+        const launcher = document.createElement('button');
+        launcher.type = 'button';
+        launcher.className = 'mixtape-launcher';
+        document.body.appendChild(launcher);
+
+        const updateLauncher = () => {
+            launcher.textContent = `🎧 Mix Tape (${draft.length})`;
+            launcher.style.display = draft.length > 0 ? 'flex' : 'none';
+        };
+
+        const syncAddButtons = () => {
+            document.querySelectorAll('.mixtape-add-btn').forEach((btn) => {
+                const inDraft = draft.some((t) => t.id === btn.dataset.memoryId);
+                btn.classList.toggle('active', inDraft);
+                btn.textContent = inDraft ? '✓ added' : '+ tape';
+            });
+        };
+
+        document.querySelectorAll('.mixtape-add-btn').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                const id = btn.dataset.memoryId;
+                const idx = draft.findIndex((t) => t.id === id);
+
+                if (idx > -1) {
+                    draft.splice(idx, 1);
+                } else {
+                    if (draft.length >= MAX_TRACKS) {
+                        alert(`A tape only holds ${MAX_TRACKS} tracks. Remove one to add another.`);
+                        return;
+                    }
+                    draft.push({ id, excerpt: btn.dataset.excerpt });
+                }
+
+                saveDraft();
+                syncAddButtons();
+                updateLauncher();
+            });
+        });
+
+        const overlay = document.createElement('div');
+        overlay.className = 'mixtape-overlay';
+        overlay.innerHTML = `
+            <div class="mixtape-builder">
+                <button type="button" class="mixtape-close" aria-label="Close">✕</button>
+                <h2 class="mixtape-heading">Cut a Mix Tape</h2>
+                <input type="text" class="mixtape-title-input" maxlength="80" placeholder="Give it a title...">
+                <ol class="mixtape-tracklist"></ol>
+                <p class="mixtape-error" style="display:none;"></p>
+                <button type="button" class="btn btn-primary mixtape-submit">Cut this tape 🎙️</button>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+
+        const tracklistEl = overlay.querySelector('.mixtape-tracklist');
+        const errorEl = overlay.querySelector('.mixtape-error');
+        const titleInput = overlay.querySelector('.mixtape-title-input');
+
+        function renderTracklist() {
+            tracklistEl.innerHTML = '';
+
+            draft.forEach((track, i) => {
+                const li = document.createElement('li');
+                li.className = 'mixtape-track';
+
+                const num = document.createElement('span');
+                num.className = 'mixtape-track-num';
+                num.textContent = String(i + 1).padStart(2, '0');
+
+                const excerpt = document.createElement('span');
+                excerpt.className = 'mixtape-track-excerpt';
+                excerpt.textContent = track.excerpt;
+
+                const controls = document.createElement('span');
+                controls.className = 'mixtape-track-controls';
+
+                const up = document.createElement('button');
+                up.type = 'button';
+                up.textContent = '↑';
+                up.disabled = i === 0;
+                up.addEventListener('click', () => {
+                    [draft[i - 1], draft[i]] = [draft[i], draft[i - 1]];
+                    saveDraft();
+                    renderTracklist();
+                });
+
+                const down = document.createElement('button');
+                down.type = 'button';
+                down.textContent = '↓';
+                down.disabled = i === draft.length - 1;
+                down.addEventListener('click', () => {
+                    [draft[i + 1], draft[i]] = [draft[i], draft[i + 1]];
+                    saveDraft();
+                    renderTracklist();
+                });
+
+                const remove = document.createElement('button');
+                remove.type = 'button';
+                remove.textContent = '✕';
+                remove.addEventListener('click', () => {
+                    draft.splice(i, 1);
+                    saveDraft();
+                    renderTracklist();
+                    syncAddButtons();
+                    updateLauncher();
+                });
+
+                controls.append(up, down, remove);
+                li.append(num, excerpt, controls);
+                tracklistEl.appendChild(li);
+            });
+        }
+
+        launcher.addEventListener('click', () => {
+            errorEl.style.display = 'none';
+            renderTracklist();
+            overlay.style.display = 'flex';
+        });
+
+        overlay.querySelector('.mixtape-close').addEventListener('click', () => {
+            overlay.style.display = 'none';
+        });
+
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) overlay.style.display = 'none';
+        });
+
+        overlay.querySelector('.mixtape-submit').addEventListener('click', () => {
+            const title = titleInput.value.trim();
+
+            if (title.length < 3) {
+                errorEl.textContent = 'Give your tape a title (at least 3 characters).';
+                errorEl.style.display = 'block';
+                return;
+            }
+
+            if (draft.length < MIN_TRACKS) {
+                errorEl.textContent = `Add at least ${MIN_TRACKS} memories to cut a tape.`;
+                errorEl.style.display = 'block';
+                return;
+            }
+
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '{{ route("mixtapes.store") }}';
+            form.style.display = 'none';
+
+            const fields = {
+                _token: csrfToken,
+                title,
+                team_name: window.RAFTERS_CURRENT_TEAM || '',
+                team_color: getComputedStyle(document.documentElement).getPropertyValue('--amber').trim(),
+            };
+
+            Object.entries(fields).forEach(([name, value]) => {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = name;
+                input.value = value;
+                form.appendChild(input);
+            });
+
+            draft.forEach((track) => {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'memory_ids[]';
+                input.value = track.id;
+                form.appendChild(input);
+            });
+
+            document.body.appendChild(form);
+            localStorage.removeItem(DRAFT_KEY);
+            form.submit();
+        });
+
+        syncAddButtons();
+        updateLauncher();
     });
 </script>
 
