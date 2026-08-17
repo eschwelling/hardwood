@@ -69,7 +69,7 @@
 
         <div class="tag-filter-bar">
             <div class="tag-filter-group">
-                <a href="/" class="tag {{ !request('tag') ? 'active' : '' }}">All</a>
+                <a href="/" class="tag {{ !request('tag') && !request('venue') ? 'active' : '' }}">All</a>
             </div>
             <div class="tag-filter-divider"></div>
             @if(isset($tags['team']))
@@ -95,7 +95,18 @@
                     @endforeach
                 </div>
             @endif
-            @if(request('tag'))
+            @if($venues->isNotEmpty())
+                <div class="tag-filter-divider"></div>
+                <div class="tag-filter-group" id="venue-filter-group">
+                    <button type="button" id="near-me-btn" class="tag tag-near-me">📍 Near me</button>
+                    @foreach($venues as $venue)
+                        <a href="/?venue={{ $venue->slug }}"
+                           class="tag tag-venue {{ request('venue') === $venue->slug ? 'active' : '' }}"
+                           data-lat="{{ $venue->latitude }}" data-lng="{{ $venue->longitude }}">{{ $venue->name }}</a>
+                    @endforeach
+                </div>
+            @endif
+            @if(request('tag') || request('venue'))
                 <div class="tag-filter-divider"></div>
                 <a href="/" class="tag" style="color:var(--amber); border-color:var(--amber);">✕ clear</a>
             @endif
@@ -126,6 +137,12 @@
                                     {{ $tag->name }}
                                 </a>
                             @endforeach
+                            @foreach($memory->venues as $venue)
+                                <a href="/?venue={{ $venue->slug }}"
+                                   class="tag tag-venue {{ request('venue') === $venue->slug ? 'active' : '' }}">
+                                    📍 {{ $venue->name }}
+                                </a>
+                            @endforeach
                         </div>
                         @if($memory->gameMedia && ($memory->gameMedia->box_score_summary || $memory->gameMedia->video_url))
                             <div class="game-media">
@@ -145,6 +162,12 @@
                                     </a>
                                 @endif
                             </div>
+                        @endif
+                        @if($gameMate = $gameMateCounts[$memory->id] ?? null)
+                            @php($gameMateTeam = $memory->tags->firstWhere('type', 'team'))
+                            <a href="/?tag={{ $gameMateTeam?->slug }}&game_date={{ $memory->game_date->toDateString() }}" class="game-mates-link">
+                                🙌 {{ $gameMate }} {{ \Illuminate\Support\Str::plural('other', $gameMate) }} remember{{ $gameMate === 1 ? 's' : '' }} this game
+                            </a>
                         @endif
                         <div class="memory-actions">
                             <div class="reaction-group" data-memory-id="{{ $memory->id }}">
@@ -1237,6 +1260,65 @@
             const dx = e.changedTouches[0].clientX - touchX;
             if (Math.abs(dx) > 50) (dx < 0 ? next() : prev());
             touchX = null;
+        });
+    })();
+</script>
+
+<script>
+    // "Near me" — sorts the venue filter chips by distance from the
+    // browser's geolocation instead of jumping straight to the closest
+    // one, so you can still see (and pick from) the next few nearby
+    // arenas rather than being forced into a single guess.
+    (function () {
+        const btn = document.getElementById('near-me-btn');
+        const group = document.getElementById('venue-filter-group');
+        if (!btn || !group) return;
+
+        function haversineMiles(lat1, lng1, lat2, lng2) {
+            const R = 3958.8;
+            const toRad = (d) => (d * Math.PI) / 180;
+            const dLat = toRad(lat2 - lat1);
+            const dLng = toRad(lng2 - lng1);
+            const a = Math.sin(dLat / 2) ** 2
+                + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+            return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        }
+
+        btn.addEventListener('click', () => {
+            if (!navigator.geolocation) {
+                btn.textContent = 'Location unavailable';
+                return;
+            }
+
+            btn.classList.add('loading');
+            btn.textContent = 'Locating…';
+
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const { latitude, longitude } = position.coords;
+                    const links = [...group.querySelectorAll('a.tag-venue')];
+
+                    links.forEach((link) => {
+                        const lat = parseFloat(link.dataset.lat);
+                        const lng = parseFloat(link.dataset.lng);
+                        const miles = haversineMiles(latitude, longitude, lat, lng);
+                        link.dataset.miles = miles;
+                        const name = link.textContent.replace(/\s*\(\d+(\.\d+)?\s*mi\)$/, '').trim();
+                        link.textContent = `${name} (${Math.round(miles)} mi)`;
+                    });
+
+                    links
+                        .sort((a, b) => parseFloat(a.dataset.miles) - parseFloat(b.dataset.miles))
+                        .forEach((link) => group.appendChild(link));
+
+                    btn.classList.remove('loading');
+                    btn.textContent = '📍 Sorted by distance';
+                },
+                () => {
+                    btn.classList.remove('loading');
+                    btn.textContent = 'Couldn\'t get your location';
+                }
+            );
         });
     })();
 </script>

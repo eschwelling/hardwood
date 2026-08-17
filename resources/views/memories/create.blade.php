@@ -114,6 +114,25 @@
             </div>
             @endif
 
+            @if($venues->isNotEmpty())
+            <div class="form-field">
+                <label class="field-label" for="venue_select">Venue (optional)</label>
+                <select name="venue_ids[]" id="venue_select" class="date-select">
+                    <option value="">Not sure / doesn't matter</option>
+                    @foreach($venues as $venue)
+                        <option value="{{ $venue->id }}" {{ in_array($venue->id, old('venue_ids', [])) ? 'selected' : '' }}>{{ $venue->name }}</option>
+                    @endforeach
+                </select>
+                <div class="field-footer">
+                    @error('venue_ids')
+                        <span class="field-error">{{ $message }}</span>
+                    @else
+                        <span class="field-hint">Where you watched it — lets other fans nearby find this memory.</span>
+                    @enderror
+                </div>
+            </div>
+            @endif
+
             <div class="form-actions">
                 <button type="submit" class="btn btn-primary" id="submit-btn">Post memory</button>
                 <a href="/" class="btn btn-ghost">Cancel</a>

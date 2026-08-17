@@ -33,6 +33,11 @@ class Memory extends Model
         return $this->belongsToMany(Tag::class, 'memory_tag');
     }
 
+    public function venues(): BelongsToMany
+    {
+        return $this->belongsToMany(Venue::class, 'memory_venue');
+    }
+
     public function reports(): HasMany
     {
         return $this->hasMany(Report::class);

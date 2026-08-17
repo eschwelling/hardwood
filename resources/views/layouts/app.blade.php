@@ -650,6 +650,18 @@
         .game-media-item a { color: var(--text-muted); text-decoration: none; transition: color 0.2s; }
         .game-media-item a:hover { color: var(--amber); }
 
+        .game-mates-link {
+            display: inline-block;
+            margin-top: 0.6rem;
+            font-size: 0.75rem;
+            color: var(--amber);
+            text-decoration: none;
+            border-bottom: 1px dotted rgba(var(--amber-rgb),0.4);
+            transition: border-color 0.2s;
+        }
+
+        .game-mates-link:hover { border-color: var(--amber); }
+
         .tag {
             font-size: 0.65rem;
             letter-spacing: 0.12em;
@@ -674,6 +686,22 @@
         }
 
         .tag-team:hover { color: var(--amber); border-color: var(--amber); background: var(--amber-dim); }
+
+        .tag-venue {
+            color: var(--text-muted);
+            border-color: var(--border2);
+        }
+
+        .tag-venue:hover { color: var(--amber); border-color: var(--amber); background: var(--amber-dim); }
+
+        .tag-near-me {
+            background: none;
+            font-family: 'Inter', sans-serif;
+            cursor: pointer;
+        }
+
+        .tag-near-me:hover { color: var(--amber); border-color: var(--amber); background: var(--amber-dim); }
+        .tag-near-me.loading { opacity: 0.5; cursor: default; }
 
         .report-btn {
             background: none;

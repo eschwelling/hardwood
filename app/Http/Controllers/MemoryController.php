@@ -8,6 +8,7 @@ use App\Models\Annotation;
 use App\Models\Memory;
 use App\Models\Resonate;
 use App\Models\Tag;
+use App\Models\Venue;
 use App\Services\ModerationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -27,6 +28,7 @@ class MemoryController extends Controller
         $query = ($isAdmin ? Memory::query() : Memory::approved())
             ->with([
                 'tags',
+                'venues',
                 'resonates',
                 'annotations' => fn ($q) => $isAdmin ? $q->orderBy('start_offset') : $q->approved()->orderBy('start_offset'),
                 'gameMedia',
@@ -38,9 +40,23 @@ class MemoryController extends Controller
             $query->whereHas('tags', fn($q) => $q->where('slug', $request->tag));
         }
 
+        // Venues aren't tags (they carry lat/lng, tags don't), so they get
+        // their own filter param rather than overloading ?tag=.
+        if ($request->filled('venue')) {
+            $query->whereHas('venues', fn ($q) => $q->where('slug', $request->query('venue')));
+        }
+
+        // Paired with a tag filter (from the "N others remember this game"
+        // link below), narrows further to memories dated to that exact day.
+        if ($request->filled('game_date')) {
+            $query->whereDate('game_date', $request->query('game_date'));
+        }
+
         $memories = $query->paginate(20);
         $tags = Tag::orderBy('type')->orderBy('name')->get()->groupBy('type');
+        $venues = Venue::orderBy('name')->get();
         $onThisDay = NbaOnThisDay::forDate(now());
+        $gameMateCounts = $this->gameMateCounts($memories->getCollection());
 
         // Postgres won't let HAVING reference a withCount() alias (unlike
         // MySQL), so filter out zero-count rows in PHP instead — ORDER BY
@@ -54,24 +70,78 @@ class MemoryController extends Controller
             ->filter(fn ($memory) => $memory->resonates_count > 0)
             ->values();
 
-        return view('memories.index', compact('memories', 'tags', 'onThisDay', 'leaderboard'));
+        return view('memories.index', compact('memories', 'tags', 'venues', 'onThisDay', 'leaderboard', 'gameMateCounts'));
+    }
+
+    /**
+     * "N others remember this game" — only meaningful for exact-day dates
+     * paired with a team tag; a looser month/year precision is too fuzzy
+     * to treat as the same game. Batched into one query per page load
+     * rather than a query per card.
+     */
+    private function gameMateCounts($pageMemories): array
+    {
+        $datedMemories = $pageMemories->filter(fn ($memory) => $memory->game_date_precision === 'day');
+
+        if ($datedMemories->isEmpty()) {
+            return [];
+        }
+
+        $dates = $datedMemories->pluck('game_date')->map(fn ($d) => $d->toDateString())->unique();
+        $teamIds = $datedMemories
+            ->flatMap(fn ($memory) => $memory->tags->where('type', 'team')->pluck('id'))
+            ->unique();
+
+        if ($teamIds->isEmpty()) {
+            return [];
+        }
+
+        $candidates = Memory::approved()
+            ->whereIn('game_date', $dates)
+            ->whereHas('tags', fn ($q) => $q->whereIn('tags.id', $teamIds))
+            ->with('tags')
+            ->get(['id', 'game_date']);
+
+        $counts = [];
+
+        foreach ($datedMemories as $memory) {
+            $teamId = optional($memory->tags->firstWhere('type', 'team'))->id;
+
+            if (!$teamId) {
+                continue;
+            }
+
+            $count = $candidates
+                ->where('id', '!=', $memory->id)
+                ->filter(fn ($c) => $c->game_date->isSameDay($memory->game_date) && $c->tags->contains('id', $teamId))
+                ->count();
+
+            if ($count > 0) {
+                $counts[$memory->id] = $count;
+            }
+        }
+
+        return $counts;
     }
 
     public function create()
     {
         $tags = Tag::orderBy('type')->orderBy('name')->get()->groupBy('type');
-        return view('memories.create', compact('tags'));
+        $venues = Venue::orderBy('name')->get();
+        return view('memories.create', compact('tags', 'venues'));
     }
 
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'body'       => 'required|string|min:50|max:500',
-            'tag_ids'    => 'required|array|min:1|max:5',
-            'tag_ids.*'  => 'exists:tags,id',
-            'game_year'  => 'nullable|integer|min:1946|max:' . now()->year,
-            'game_month' => 'nullable|integer|between:1,12',
-            'game_day'   => 'nullable|integer|between:1,31',
+            'body'        => 'required|string|min:50|max:500',
+            'tag_ids'     => 'required|array|min:1|max:5',
+            'tag_ids.*'   => 'exists:tags,id',
+            'venue_ids'   => 'nullable|array|max:2',
+            'venue_ids.*' => 'exists:venues,id',
+            'game_year'   => 'nullable|integer|min:1946|max:' . now()->year,
+            'game_month'  => 'nullable|integer|between:1,12',
+            'game_day'    => 'nullable|integer|between:1,31',
         ]);
 
         [$gameDate, $gameDatePrecision] = $this->resolveGameDate($validated);
@@ -101,6 +171,14 @@ class MemoryController extends Controller
         ]);
 
         $memory->tags()->attach($validated['tag_ids']);
+
+        // The venue <select> has no `multiple` attribute (most people were
+        // only at one arena), so its unselected default option still
+        // submits an empty value — filter it out before attaching.
+        $venueIds = array_filter($validated['venue_ids'] ?? []);
+        if ($venueIds) {
+            $memory->venues()->attach($venueIds);
+        }
 
         if ($status === 'approved' && $memory->game_date) {
             LookupGameMediaJob::dispatch($memory)->afterResponse();
