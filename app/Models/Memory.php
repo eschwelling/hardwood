@@ -15,6 +15,7 @@ class Memory extends Model
     protected $fillable = [
         'body',
         'game_date',
+        'game_date_precision',
         'ip_hash',
         'status',
     ];

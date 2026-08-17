@@ -27,10 +27,17 @@ class GameMediaLookupService
             return;
         }
 
-        $date = $memory->game_date->toDateString();
+        // A box score needs an exact day to match against; a looser
+        // "month" or "year" precision (most people don't remember the
+        // exact date of an old game) still gives video search enough
+        // to work with, just a broader query.
+        $precision = $memory->game_date_precision ?? 'day';
 
-        $boxScore = $this->findBoxScore($date, $team->name);
-        $video = $this->findVideo($date, $team->name, $boxScore['opponent'] ?? null);
+        $boxScore = $precision === 'day'
+            ? $this->findBoxScore($memory->game_date->toDateString(), $team->name)
+            : null;
+
+        $video = $this->findVideo($team->name, $memory->game_date, $precision, $boxScore['opponent'] ?? null);
 
         if (!$boxScore && !$video) {
             return;
@@ -89,7 +96,7 @@ class GameMediaLookupService
         return null;
     }
 
-    private function findVideo(string $date, string $teamName, ?string $opponent): ?array
+    private function findVideo(string $teamName, \Carbon\Carbon $date, string $precision, ?string $opponent): ?array
     {
         $key = config('services.youtube.key');
 
@@ -97,9 +104,15 @@ class GameMediaLookupService
             return null;
         }
 
+        $when = match ($precision) {
+            'day'   => $date->toDateString(),
+            'month' => $date->format('F Y'),
+            default => (string) $date->year,
+        };
+
         $query = $opponent
-            ? "{$teamName} vs {$opponent} highlights {$date}"
-            : "{$teamName} highlights {$date}";
+            ? "{$teamName} vs {$opponent} highlights {$when}"
+            : "{$teamName} highlights {$when}";
 
         try {
             $response = Http::timeout(5)->get('https://www.googleapis.com/youtube/v3/search', [

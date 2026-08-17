@@ -1116,7 +1116,7 @@
             archiveLoading = true;
             renderArchive();
 
-            fetch('{{ route("dunks.index") }}', { headers: { Accept: 'application/json' } })
+            fetch('/dunks', { headers: { Accept: 'application/json' } })
                 .then((res) => res.json())
                 .then((data) => {
                     archive = Array.isArray(data) ? data : [];
@@ -1141,7 +1141,7 @@
 
             dunkStatusEl.textContent = 'Submitting…';
 
-            fetch('{{ route("dunks.store") }}', {
+            fetch('/dunks', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

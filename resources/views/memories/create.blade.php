@@ -35,20 +35,32 @@
             </div>
 
             <div class="form-field">
-                <label class="field-label" for="game_date">When was this? (optional)</label>
-                <input
-                    type="date"
-                    id="game_date"
-                    name="game_date"
-                    class="date-input"
-                    max="{{ now()->toDateString() }}"
-                    value="{{ old('game_date') }}"
-                >
+                <label class="field-label">When was this? (optional)</label>
+                <div class="date-select-row">
+                    <select name="game_year" class="date-select" aria-label="Year">
+                        <option value="">Year</option>
+                        @for ($y = now()->year; $y >= 1946; $y--)
+                            <option value="{{ $y }}" {{ (string) old('game_year') === (string) $y ? 'selected' : '' }}>{{ $y }}</option>
+                        @endfor
+                    </select>
+                    <select name="game_month" class="date-select" aria-label="Month">
+                        <option value="">Month</option>
+                        @foreach (['January','February','March','April','May','June','July','August','September','October','November','December'] as $i => $name)
+                            <option value="{{ $i + 1 }}" {{ (string) old('game_month') === (string) ($i + 1) ? 'selected' : '' }}>{{ $name }}</option>
+                        @endforeach
+                    </select>
+                    <select name="game_day" class="date-select" aria-label="Day">
+                        <option value="">Day</option>
+                        @for ($d = 1; $d <= 31; $d++)
+                            <option value="{{ $d }}" {{ (string) old('game_day') === (string) $d ? 'selected' : '' }}>{{ $d }}</option>
+                        @endfor
+                    </select>
+                </div>
                 <div class="field-footer">
-                    @error('game_date')
+                    @error('game_year')
                         <span class="field-error">{{ $message }}</span>
                     @else
-                        <span class="field-hint">If you know the exact date, we'll try to dig up the box score and highlights.</span>
+                        <span class="field-hint">Just the year is fine — the more precise, the better our box score/highlight search works.</span>
                     @enderror
                 </div>
             </div>
@@ -196,7 +208,13 @@
     .char-count.warning { color: var(--amber); }
     .char-count.danger { color: #e87070; }
 
-    .date-input {
+    .date-select-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+    }
+
+    .date-select {
         background: var(--surface);
         border: 1px solid var(--border2);
         border-radius: 4px;
@@ -208,7 +226,7 @@
         color-scheme: dark;
     }
 
-    .date-input:focus { outline: none; border-color: var(--amber); }
+    .date-select:focus { outline: none; border-color: var(--amber); }
 
     .checkbox-grid {
         display: grid;

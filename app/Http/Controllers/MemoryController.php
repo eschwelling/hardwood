@@ -66,11 +66,19 @@ class MemoryController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'body'      => 'required|string|min:50|max:500',
-            'tag_ids'   => 'required|array|min:1|max:5',
-            'tag_ids.*' => 'exists:tags,id',
-            'game_date' => 'nullable|date|before_or_equal:today',
+            'body'       => 'required|string|min:50|max:500',
+            'tag_ids'    => 'required|array|min:1|max:5',
+            'tag_ids.*'  => 'exists:tags,id',
+            'game_year'  => 'nullable|integer|min:1946|max:' . now()->year,
+            'game_month' => 'nullable|integer|between:1,12',
+            'game_day'   => 'nullable|integer|between:1,31',
         ]);
+
+        [$gameDate, $gameDatePrecision] = $this->resolveGameDate($validated);
+
+        if ($gameDate && $gameDate->isFuture()) {
+            return back()->withErrors(['game_year' => 'That date hasn\'t happened yet.'])->withInput();
+        }
 
         // Rate limit: 3 posts per IP per day
         $ipHash = Hash::make($request->ip() . now()->toDateString());
@@ -85,10 +93,11 @@ class MemoryController extends Controller
         $status = $this->moderation->needsReview($validated['body']) ? 'pending' : 'approved';
 
         $memory = Memory::create([
-            'body'      => $validated['body'],
-            'game_date' => $validated['game_date'] ?? null,
-            'ip_hash'   => $ipHash,
-            'status'    => $status,
+            'body'                 => $validated['body'],
+            'game_date'            => $gameDate,
+            'game_date_precision'  => $gameDatePrecision,
+            'ip_hash'              => $ipHash,
+            'status'               => $status,
         ]);
 
         $memory->tags()->attach($validated['tag_ids']);
@@ -114,6 +123,33 @@ class MemoryController extends Controller
         return redirect()->route('memories.index')
             ->with('success', 'Your memory has been shared. 🏀')
             ->with('echo', $echo);
+    }
+
+    /**
+     * Builds a game_date from whatever precision the poster gave —
+     * full date, month + year, or just a year — since most people
+     * don't remember the exact day of an old game. Box score lookups
+     * need day precision, but video search can work off a looser one.
+     */
+    private function resolveGameDate(array $validated): array
+    {
+        if (empty($validated['game_year'])) {
+            return [null, null];
+        }
+
+        $year = (int) $validated['game_year'];
+        $month = $validated['game_month'] ? (int) $validated['game_month'] : null;
+        $day = $validated['game_day'] ? (int) $validated['game_day'] : null;
+
+        if ($month && $day && checkdate($month, $day, $year)) {
+            return [\Carbon\Carbon::create($year, $month, $day), 'day'];
+        }
+
+        if ($month) {
+            return [\Carbon\Carbon::create($year, $month, 1), 'month'];
+        }
+
+        return [\Carbon\Carbon::create($year, 1, 1), 'year'];
     }
 
     public function report(Request $request, Memory $memory)
