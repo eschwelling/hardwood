@@ -120,7 +120,7 @@
         }
 
         /* Nav */
-        nav {
+        .site-nav {
             position: fixed;
             top: 0;
             left: 0;
@@ -133,7 +133,7 @@
             mix-blend-mode: normal;
         }
 
-        nav::after {
+        .site-nav::after {
             content: '';
             position: absolute;
             inset: 0;
@@ -780,10 +780,11 @@
         }
 
         .pagination a:hover { border-color: var(--amber); color: var(--amber); }
-        .pagination .active span { border-color: var(--amber); color: var(--amber); }
+        .pagination span.active { border-color: var(--amber); color: var(--amber); }
+        .pagination span.disabled { opacity: 0.3; }
 
         @media (max-width: 700px) {
-            nav { padding: 1.25rem 1.5rem; }
+            .site-nav { padding: 1.25rem 1.5rem; }
             #cursor, #cursor-ring { display: none; }
             body { cursor: auto; }
             .btn { cursor: pointer; }
@@ -856,7 +857,7 @@
 <div id="cursor"></div>
 <div id="cursor-ring"></div>
 
-<nav>
+<nav class="site-nav">
     <a href="/" class="logo">Rafters</a>
     <div class="nav-right">
         <a href="/" class="nav-link">Feed</a>

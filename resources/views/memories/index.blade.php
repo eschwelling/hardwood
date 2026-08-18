@@ -209,9 +209,7 @@
                 @endforeach
             </div>
 
-            @if($memories->hasPages())
-                <div class="pagination">{{ $memories->links() }}</div>
-            @endif
+            {{ $memories->links() }}
         @endif
 
     </div>
