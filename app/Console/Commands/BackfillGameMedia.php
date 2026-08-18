@@ -18,8 +18,10 @@ use Illuminate\Console\Command;
 class BackfillGameMedia extends Command
 {
     protected $signature = 'memories:backfill-media
-                            {--force : Re-run for memories that already have media attached}
-                            {--limit=100 : Maximum number of memories to process in one run}';
+                            {--force : Re-run every lookup, even for media already on record}
+                            {--limit=100 : Maximum number of memories to process in one run}
+                            {--sleep=0 : Seconds to wait between memories, to stay under provider rate limits}
+                            {--recheck-after=14 : Days before a fruitless lookup is attempted again}';
 
     protected $description = 'Look up box scores and highlight videos for memories missing them';
 
@@ -31,19 +33,21 @@ class BackfillGameMedia extends Command
             return self::SUCCESS;
         }
 
-        $query = Memory::approved()
-            ->whereNotNull('game_date')
-            ->with('tags');
+        $force = (bool) $this->option('force');
+        $sleep = (int) $this->option('sleep');
 
-        // Without --force, only touch memories that have no media row at
-        // all. That keeps repeat runs cheap and, more importantly, stops
-        // us burning YouTube quota re-searching for clips that genuinely
-        // don't exist. Use --force after adding a new provider key.
-        if (!$this->option('force')) {
-            $query->whereDoesntHave('gameMedia');
+        $memories = Memory::approved()
+            ->whereNotNull('game_date')
+            ->with('tags', 'gameMedia')
+            ->get();
+
+        if (!$force) {
+            $memories = $memories->filter(
+                fn (Memory $memory) => $this->needsLookup($memory)
+            );
         }
 
-        $memories = $query->limit((int) $this->option('limit'))->get();
+        $memories = $memories->take((int) $this->option('limit'))->values();
 
         if ($memories->isEmpty()) {
             $this->info('No memories need a media lookup.');
@@ -55,8 +59,15 @@ class BackfillGameMedia extends Command
 
         $attached = 0;
 
-        foreach ($memories as $memory) {
-            $lookup->lookup($memory);
+        foreach ($memories as $i => $memory) {
+            // Providers are rate limited per minute, so pace the run rather
+            // than firing the whole batch at once and getting most of it
+            // throttled into silence.
+            if ($sleep > 0 && $i > 0) {
+                sleep($sleep);
+            }
+
+            $lookup->lookup($memory, $force);
 
             $media = $memory->fresh('gameMedia')->gameMedia;
 
@@ -67,11 +78,46 @@ class BackfillGameMedia extends Command
                     $media->video_url ? 'video ' : '',
                     $media->box_score_summary ? 'box score' : ''
                 ));
+            } else {
+                $this->line('  · nothing found');
             }
         }
 
-        $this->info("Done. Attached media to {$attached} of {$memories->count()} memories.");
+        $this->info("Done. {$attached} of {$memories->count()} memories have media.");
 
         return self::SUCCESS;
+    }
+
+    /**
+     * A memory needs a lookup if it has never been checked, or if it's
+     * still missing a piece that a configured provider could supply and
+     * enough time has passed to be worth asking again.
+     */
+    private function needsLookup(Memory $memory): bool
+    {
+        $media = $memory->gameMedia;
+
+        if (!$media) {
+            return true;
+        }
+
+        // A row with no checked_at predates that column, so it's due for a
+        // look; otherwise wait out the recheck window before asking again.
+        $dueForRecheck = !$media->checked_at
+            || $media->checked_at->diffInDays(now()) >= (int) $this->option('recheck-after');
+
+        if (!$dueForRecheck) {
+            return false;
+        }
+
+        $precision = $memory->game_date_precision ?? 'day';
+
+        $missingBoxScore = $precision === 'day'
+            && !$media->box_score_summary
+            && config('services.balldontlie.key');
+
+        $missingVideo = !$media->video_url && config('services.youtube.key');
+
+        return $missingBoxScore || $missingVideo;
     }
 }

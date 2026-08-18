@@ -15,7 +15,7 @@ class GameMediaLookupService
      * best-effort — a missing API key, a rate limit, or no match just
      * means that piece stays empty, never an error the poster sees.
      */
-    public function lookup(Memory $memory): void
+    public function lookup(Memory $memory, bool $force = false): void
     {
         if (!$memory->game_date) {
             return;
@@ -32,26 +32,35 @@ class GameMediaLookupService
         // exact date of an old game) still gives video search enough
         // to work with, just a broader query.
         $precision = $memory->game_date_precision ?? 'day';
+        $existing = $memory->gameMedia;
 
-        $boxScore = $precision === 'day'
+        // Only call out for pieces we don't already have. Both providers
+        // are rate limited, so re-fetching something already on record is
+        // a request that could have filled a genuine gap instead.
+        $boxScore = ($precision === 'day' && ($force || !$existing?->box_score_summary))
             ? $this->findBoxScore($memory->game_date->toDateString(), $team->name)
             : null;
 
-        $video = $this->findVideo($team->name, $memory->game_date, $precision, $boxScore['opponent'] ?? null);
+        $video = ($force || !$existing?->video_url)
+            ? $this->findVideo($team->name, $memory->game_date, $precision, $boxScore['opponent'] ?? null)
+            : null;
 
-        if (!$boxScore && !$video) {
-            return;
+        // Stamped even when nothing was found, so a later backfill can tell
+        // "we looked and came up empty" apart from "never looked" and not
+        // re-query the same dead ends on every deploy.
+        $payload = ['checked_at' => now()];
+
+        if ($boxScore) {
+            $payload['box_score_summary'] = $boxScore['summary'];
+            $payload['box_score_url'] = $boxScore['url'];
         }
 
-        GameMedia::updateOrCreate(
-            ['memory_id' => $memory->id],
-            [
-                'box_score_summary' => $boxScore['summary'] ?? null,
-                'box_score_url'     => $boxScore['url'] ?? null,
-                'video_title'       => $video['title'] ?? null,
-                'video_url'         => $video['url'] ?? null,
-            ]
-        );
+        if ($video) {
+            $payload['video_title'] = $video['title'];
+            $payload['video_url'] = $video['url'];
+        }
+
+        GameMedia::updateOrCreate(['memory_id' => $memory->id], $payload);
     }
 
     private function findBoxScore(string $date, string $teamName): ?array
@@ -71,7 +80,19 @@ class GameMediaLookupService
             return null;
         }
 
+        // The free tier allows 5 requests/minute. Getting throttled used to
+        // be indistinguishable from "this game isn't in their data", which
+        // made a pacing problem look like a coverage problem.
+        if ($response->status() === 429) {
+            Log::warning('balldontlie rate limit hit — box score skipped', ['date' => $date]);
+            return null;
+        }
+
         if (!$response->successful()) {
+            Log::warning('balldontlie request failed', [
+                'date' => $date,
+                'status' => $response->status(),
+            ]);
             return null;
         }
 

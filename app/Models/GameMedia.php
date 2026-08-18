@@ -18,6 +18,11 @@ class GameMedia extends Model
         'box_score_url',
         'video_title',
         'video_url',
+        'checked_at',
+    ];
+
+    protected $casts = [
+        'checked_at' => 'datetime',
     ];
 
     public function memory(): BelongsTo
