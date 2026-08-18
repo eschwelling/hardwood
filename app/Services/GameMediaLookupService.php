@@ -104,8 +104,11 @@ class GameMediaLookupService
             return null;
         }
 
+        // Write the date the way a human titling a highlight reel would —
+        // "May 26, 1987", not "1987-05-26". Nobody puts an ISO date in a
+        // YouTube title, so searching one matches on the year at best.
         $when = match ($precision) {
-            'day'   => $date->toDateString(),
+            'day'   => $date->format('F j, Y'),
             'month' => $date->format('F Y'),
             default => (string) $date->year,
         };

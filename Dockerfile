@@ -18,4 +18,4 @@ EXPOSE 8000
 # The backfill is wrapped in `|| true` deliberately: it makes outbound API
 # calls, and a provider outage or an exhausted quota must never stop the web
 # server from booting.
-CMD ["sh", "-c", "php artisan migrate --force && php artisan db:seed --force && (php artisan memories:backfill-media --limit=200 || true) && php -S 0.0.0.0:${PORT:-8000} -t public"]
+CMD ["sh", "-c", "php artisan migrate --force && php artisan db:seed --force && (php artisan memories:backfill-media --force --limit=200 || true) && php -S 0.0.0.0:${PORT:-8000} -t public"]
