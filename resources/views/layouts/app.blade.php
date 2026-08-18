@@ -9,7 +9,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/SplitText.min.js"></script>
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -955,6 +954,17 @@
                 delay: i < 4 ? i * 0.07 : 0
             });
         });
+
+        // ScrollTrigger calculates each card's trigger position from the
+        // page's layout at the moment this runs. Playfair Display/Inter
+        // are web fonts that can still be downloading at that point —
+        // when they swap in, every card's text reflows and every trigger
+        // position below it goes stale, leaving cards stuck mid-fade
+        // (partial opacity, offset) instead of settling in. With a full
+        // feed of cards this compounds into what looks like broken,
+        // overlapping content. Recalculating once fonts are actually
+        // ready fixes the positions for good.
+        document.fonts.ready.then(() => ScrollTrigger.refresh());
     });
 
     // Card tilt — subtle 3D parallax that follows the cursor, skipped on
