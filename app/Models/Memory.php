@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Memory extends Model
 {
@@ -13,8 +14,14 @@ class Memory extends Model
 
     protected $fillable = [
         'body',
+        'game_date',
+        'game_date_precision',
         'ip_hash',
         'status',
+    ];
+
+    protected $casts = [
+        'game_date' => 'date',
     ];
 
     protected $hidden = [
@@ -26,9 +33,29 @@ class Memory extends Model
         return $this->belongsToMany(Tag::class, 'memory_tag');
     }
 
+    public function venues(): BelongsToMany
+    {
+        return $this->belongsToMany(Venue::class, 'memory_venue');
+    }
+
     public function reports(): HasMany
     {
         return $this->hasMany(Report::class);
+    }
+
+    public function resonates(): HasMany
+    {
+        return $this->hasMany(Resonate::class);
+    }
+
+    public function annotations(): HasMany
+    {
+        return $this->hasMany(Annotation::class);
+    }
+
+    public function gameMedia(): HasOne
+    {
+        return $this->hasOne(GameMedia::class);
     }
 
     public function scopeApproved($query)

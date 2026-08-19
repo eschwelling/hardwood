@@ -15,4 +15,7 @@ RUN cp .env.example .env \
     && php artisan key:generate
 
 EXPOSE 8000
-CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
+# The backfill is wrapped in `|| true` deliberately: it makes outbound API
+# calls, and a provider outage or an exhausted quota must never stop the web
+# server from booting.
+CMD ["sh", "-c", "php artisan migrate --force && php artisan db:seed --force && (php artisan memories:backfill-media --limit=200 --sleep=13 || true) && php -S 0.0.0.0:${PORT:-8000} -t public"]

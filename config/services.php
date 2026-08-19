@@ -14,6 +14,18 @@ return [
     |
     */
 
+    'openai' => [
+        'key' => env('OPENAI_API_KEY'),
+    ],
+
+    'balldontlie' => [
+        'key' => env('BALLDONTLIE_API_KEY'),
+    ],
+
+    'youtube' => [
+        'key' => env('YOUTUBE_API_KEY'),
+    ],
+
     'postmark' => [
         'key' => env('POSTMARK_API_KEY'),
     ],
